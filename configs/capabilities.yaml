@@ -1,0 +1,221 @@
+version: 1
+
+capabilities:
+  - id: code.synthesis
+    name: Softwareentwicklung
+    description: >-
+      Code erzeugen, ändern, erklären, debuggen und durch Tests oder
+      Compiler verifizieren.
+    weight: 0.17
+    parents: []
+    dimensions:
+      - correctness
+      - repository_understanding
+      - repair
+      - testing
+    training_sources:
+      - verified_repositories
+      - compiler_feedback
+      - test_feedback
+    runtime_tools: []
+    evaluation:
+      - unit_tests
+      - type_check
+      - lint
+      - build
+
+  - id: reasoning.logical
+    name: Logisches Reasoning
+    description: >-
+      Logische, mathematische und mehrstufige Schlussfolgerungen mit
+      prüfbaren Endresultaten.
+    weight: 0.15
+    parents: []
+    dimensions:
+      - correctness
+      - deduction
+      - planning
+      - calibration
+    training_sources:
+      - verified_solutions
+      - counterexamples
+      - deterministic_verifiers
+    runtime_tools: []
+    evaluation:
+      - exact_answer
+      - symbolic_verifier
+      - judge_review
+
+  - id: long_context.retention
+    name: Long Context
+    description: >-
+      Lange Dokumente und Verläufe lesen, miteinander verknüpfen und relevante
+      Informationen zuverlässig abrufen.
+    weight: 0.10
+    parents:
+      - reasoning.logical
+    dimensions:
+      - retrieval
+      - cross_reference
+      - contradiction_detection
+    training_sources:
+      - long_documents
+      - cross_document_qa
+      - retrieval_traces
+    runtime_tools:
+      - document_search
+    evaluation:
+      - needle_tests
+      - cross_document_qa
+
+  - id: multimodal.grounding
+    name: Multimodalität
+    description: >-
+      Bilder, Dokumente, Diagramme und OCR-Inhalte verstehen und Aussagen
+      sichtbar belegen.
+    weight: 0.10
+    parents: []
+    dimensions:
+      - image_understanding
+      - document_qa
+      - ocr
+      - diagram_reasoning
+    training_sources:
+      - image_text_pairs
+      - document_images
+      - diagram_reasoning
+    runtime_tools: []
+    evaluation:
+      - grounding_metrics
+      - human_review
+
+  - id: agent.tool_use
+    name: Agentische Werkzeugnutzung
+    description: >-
+      Werkzeuge auswählen, strukturiert aufrufen, Ergebnisse verarbeiten,
+      Fehler erkennen und sicher recoveren.
+    weight: 0.13
+    parents:
+      - code.synthesis
+      - reasoning.logical
+    dimensions:
+      - tool_selection
+      - argument_validity
+      - recovery
+      - safety
+    training_sources:
+      - verified_tool_trajectories
+      - error_recovery_trajectories
+    runtime_tools:
+      - function_calling
+      - mcp
+    evaluation:
+      - tool_call_validity
+      - task_success
+      - unsafe_action_rate
+
+  - id: research.verification
+    name: Verifizierte Recherche
+    description: >-
+      Aktuelle oder fachliche Informationen recherchieren, Quellen prüfen und
+      Unsicherheit kalibriert ausdrücken.
+    weight: 0.09
+    parents:
+      - reasoning.logical
+      - long_context.retention
+    dimensions:
+      - search_quality
+      - source_quality
+      - citation_grounding
+      - freshness
+    training_sources:
+      - search_trajectories
+      - source_comparison
+      - fact_verification
+    runtime_tools:
+      - web_search
+      - web_fetch
+    evaluation:
+      - citation_resolution
+      - claim_grounding
+      - source_independence
+
+  - id: writing.quality
+    name: Writing und Dokumentation
+    description: >-
+      Verständliche, präzise Texte für verschiedene Zielgruppen erstellen und
+      stilistisch überarbeiten.
+    weight: 0.08
+    parents: []
+    dimensions:
+      - clarity
+      - structure
+      - style_control
+      - audience_fit
+    training_sources:
+      - editorial_pairs
+      - expert_writing
+      - style_datasets
+    runtime_tools: []
+    evaluation:
+      - rubric_judge
+      - human_review
+
+  - id: safety.injection_resistance
+    name: Safety und Injection-Abwehr
+    description: >-
+      Untrusted Input behandeln, Exfiltration verhindern, gefährliche Aktionen
+      verweigern und Policies zuverlässig anwenden.
+    weight: 0.10
+    parents: []
+    dimensions:
+      - prompt_injection
+      - data_exfiltration
+      - dangerous_actions
+      - policy_adherence
+    training_sources:
+      - adversarial_prompts
+      - tool_output_attacks
+      - safety_policies
+    runtime_tools:
+      - policy_engine
+    evaluation:
+      - attack_success_rate
+      - refusal_precision
+      - unsafe_action_rate
+
+  - id: multilingual.quality
+    name: Multilingualität
+    description: >-
+      Aufgaben in mehreren Sprachen verstehen und in der jeweiligen Sprache
+      korrekt, natürlich und präzise beantworten.
+    weight: 0.04
+    parents: []
+    dimensions:
+      - german
+      - english
+      - multilingual_transfer
+    training_sources:
+      - multilingual_sft
+      - translated_verified_tasks
+    runtime_tools: []
+    evaluation:
+      - multilingual_benchmarks
+
+  - id: instruction.structured_output
+    name: Instruction Following
+    description: >-
+      Constraints, Formate und Ausgabeschemas zuverlässig einhalten.
+    weight: 0.04
+    parents: []
+    dimensions:
+      - constraint_adherence
+      - json_validity
+      - schema_compliance
+    training_sources:
+      - constrained_generation
+      - format_verified_outputs
+    runtime_tools: []
+    evaluation:
+      - schema_validation
+      - constraint_checker
