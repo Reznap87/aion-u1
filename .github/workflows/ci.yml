@@ -35,6 +35,9 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+      - name: Validate task bank
+        run: |
+          python -c "from pathlib import Path; from aion_u1.training.tasks import load_task_bank; b=load_task_bank(Path('training/configs/tasks/pilot.yaml')); assert len(b.tasks) == 12"
 
       - name: Validate SFT configuration
         run: |

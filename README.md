@@ -54,3 +54,7 @@ pytest -q
 Die Teacher-IDs in `configs/teachers.yaml` sind Kandidaten. Sie gelten erst
 nach erfolgreicher Katalogverifikation als verfügbar.
 ## Commit 2: Unified-SFT
+
+## Commit 3: Multi-Teacher Data Factory
+
+Adds a 12-task capability pilot, live OpenRouter candidate generation, deterministic and Docker-isolated Python verification, deduplication, ranking, preference-pair export, and CI validation. Teacher outputs remain unreviewed until explicitly approved for training.
