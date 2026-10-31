@@ -9,3 +9,9 @@ build/
 reports/*.json
 data/generated/
 data/verified/
+
+# AION-U1 Training Outputs
+artifacts/
+training/output/
+*.safetensors
+*.bin

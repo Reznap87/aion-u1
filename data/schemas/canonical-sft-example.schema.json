@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AION-U1 canonical SFT example",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "group_id",
+    "messages",
+    "capabilities",
+    "provenance",
+    "verification"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 16
+    },
+    "group_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "case_id": {
+      "type": ["string", "null"]
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "content"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant",
+              "tool"
+            ]
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "license",
+        "training_approved",
+        "teacher_alias",
+        "teacher_model_id"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string"
+        },
+        "training_approved": {
+          "type": "boolean"
+        },
+        "teacher_alias": {
+          "type": "string"
+        },
+        "teacher_model_id": {
+          "type": "string"
+        },
+        "selected_teacher_alias": {
+          "type": "string"
+        },
+        "selected_teacher_model_id": {
+          "type": "string"
+        },
+        "selection_score": {
+          "type": "number"
+        },
+        "candidate_teacher_aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "candidate_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "approval": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "score",
+        "method"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "verified"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "method": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

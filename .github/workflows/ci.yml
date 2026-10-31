@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Compile source
+        run: python -m compileall -q src
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Validate SFT configuration
+        run: |
+          python -c "from pathlib import Path; from aion_u1.training.config import load_sft_config; load_sft_config(Path('training/configs/sft_lora.yaml'))"

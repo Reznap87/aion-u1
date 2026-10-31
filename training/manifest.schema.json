@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AION-U1 training run manifest",
+  "type": "object",
+  "required": [
+    "status",
+    "config",
+    "package_versions",
+    "data",
+    "model"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "completed",
+        "failed"
+      ]
+    },
+    "config": {
+      "type": "object"
+    },
+    "git_commit": {
+      "type": ["string", "null"]
+    },
+    "package_versions": {
+      "type": "object"
+    },
+    "python": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "accelerator": {
+      "type": "object"
+    },
+    "data": {
+      "type": "object"
+    },
+    "model": {
+      "type": "object"
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "artifacts": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

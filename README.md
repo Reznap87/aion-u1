@@ -53,3 +53,4 @@ pytest -q
 
 Die Teacher-IDs in `configs/teachers.yaml` sind Kandidaten. Sie gelten erst
 nach erfolgreicher Katalogverifikation als verfügbar.
+## Commit 2: Unified-SFT
