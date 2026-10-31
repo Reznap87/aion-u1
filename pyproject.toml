@@ -33,6 +33,8 @@ aion-u1 = "aion_u1.cli:main"
 aion-u1-prepare-sft = "aion_u1.training.prepare:main"
 aion-u1-approve-sft = "aion_u1.training.approve:main"
 aion-u1-train-sft = "aion_u1.training.sft:main"
+aion-u1-generate-candidates = "aion_u1.training.generate:main"
+aion-u1-rank-candidates = "aion_u1.training.rank:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aion_u1"]
