@@ -21,7 +21,7 @@ teachers:
     display_name: Claude Fable 5.1
     provider: openrouter
     candidate_model_ids:
-      - anthropic/claude-fable-5-1
+      - anthropic/claude-fable-5.1
       - claude-fable-5-1
     model_id_env: CLAUDE_FABLE_5_1_MODEL_ID
     api_key_env: OPENROUTER_API_KEY
