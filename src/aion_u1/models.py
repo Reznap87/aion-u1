@@ -91,7 +91,7 @@ class CaseResult(BaseModel):
     capability: str
     prompt: str
     response: str
-    score: float = Field(ge=0, le=1)
+    score: float | None = Field(ge=0, le=1)
     passed: bool
     verifier_type: str
     latency_ms: int
@@ -102,10 +102,11 @@ class CaseResult(BaseModel):
 
 class TeacherScore(BaseModel):
     teacher_alias: str
-    overall_score: float = Field(ge=0, le=1)
+    overall_score: float | None = Field(ge=0, le=1)
     coverage: float = Field(ge=0, le=1)
     cases: int
     passed: int
+    errored: int = 0
     capability_scores: dict[str, float]
 
 
