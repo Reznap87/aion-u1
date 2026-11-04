@@ -37,8 +37,24 @@ aion-u1 audit \
 aion-u1 dataset \
   --report reports/audit-smoke.json \
   --output data/generated/teacher_candidates.jsonl \
-  --verified-output data/verified/smoke_sft.jsonl
+  --pending-output data/generated/smoke_sft_pending.jsonl
 ```
+
+Bestandene Smoke-Cases bleiben `pending_review`. Erst eine explizite Prüfung
+und Freigabe macht diese Beispiele trainingsrelevant:
+
+```bash
+aion-u1-approve-sft \
+  --input data/generated/smoke_sft_pending.jsonl \
+  --output data/verified/smoke_sft.jsonl \
+  --license "<geprüfte Lizenz>" --operator "<prüfende Person>" \
+  --ids-file review/approved_ids.txt
+```
+
+`review/approved_ids.txt` enthält je Zeile die ID eines tatsächlich geprüften
+Beispiels. Der Freigabebefehl exportiert ausschließlich freigegebene Zeilen.
+Die Lizenz und die Betreiberangabe müssen inhaltlich geprüft werden; der
+Befehl selbst führt keine Rechtsprüfung durch.
 
 Die Smoke-Suite ist nur ein technischer Vertical Slice. Sie ersetzt nicht das
 vollständige, blinde Capability-Benchmark.
