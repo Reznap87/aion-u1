@@ -148,7 +148,7 @@ async def _run_case(
                 capability=case.capability,
                 prompt=case.prompt,
                 response="",
-                score=0.0,
+                score=None,
                 passed=False,
                 verifier_type=case.verifier.type,
                 latency_ms=0,
@@ -227,15 +227,19 @@ def calculate_scores(
             if result.teacher_alias == alias
         ]
 
+        evaluated_results = [
+            result for result in teacher_results
+            if result.error is None and result.score is not None
+        ]
         capability_ids = sorted(
-            {result.capability for result in teacher_results}
+            {result.capability for result in evaluated_results}
         )
         capability_scores: dict[str, float] = {}
 
         for capability_id in capability_ids:
             values = [
                 result.score
-                for result in teacher_results
+                for result in evaluated_results
                 if result.capability == capability_id
             ]
             capability_scores[capability_id] = (
@@ -274,7 +278,7 @@ def calculate_scores(
                 else math.exp(logarithmic_sum)
             )
         else:
-            overall = 0.0
+            overall = None  # Kein auswertbarer Case: nicht bewertet, nicht schlecht
 
         scores[alias] = TeacherScore(
             teacher_alias=alias,
@@ -282,6 +286,7 @@ def calculate_scores(
             coverage=coverage,
             cases=len(teacher_results),
             passed=sum(result.passed for result in teacher_results),
+            errored=sum(result.error is not None for result in teacher_results),
             capability_scores=capability_scores,
         )
 
