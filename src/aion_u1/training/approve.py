@@ -61,7 +61,14 @@ def main(
             "Es fehlt --ids-file oder --confirm-all."
         )
 
-    rows = read_jsonl(Path(args.input))
+    input_path = Path(args.input)
+    output = Path(args.output)
+    if input_path.resolve() == output.resolve():
+        raise TrainingDataError("Input- und Output-Datei müssen verschieden sein.")
+    if not args.license.strip() or not args.operator.strip():
+        raise TrainingDataError("Lizenz und Operator dürfen nicht leer sein.")
+
+    rows = read_jsonl(input_path)
     ids: set[str] | None = None
 
     if args.ids_file:
@@ -81,48 +88,64 @@ def main(
     ).isoformat()
 
     approved_ids: list[str] = []
+    approved_rows: list[dict] = []
+    seen_ids: set[str] = set()
 
     for row in rows:
-        row_id = str(row.get("id", ""))
+        row_id = str(row.get("id", "")).strip()
+        if not row_id or row_id in seen_ids:
+            raise TrainingDataError("Leere oder doppelte SFT-ID im Input.")
+        seen_ids.add(row_id)
 
         should_approve = (
             args.confirm_all
-            or (
-                ids is not None
-                and row_id in ids
-            )
+            or (ids is not None and row_id in ids)
         )
-
         if not should_approve:
             continue
 
-        provenance = dict(
-            row.get("provenance") or {}
-        )
+        verification = dict(row.get("verification") or {})
+        previous_status = verification.get("status")
+        if previous_status not in {"pending_review", "verified"}:
+            raise TrainingDataError(
+                f"Datensatz {row_id} ist nicht für eine Freigabe vorbereitet."
+            )
 
-        provenance["license"] = args.license
+        provenance = dict(row.get("provenance") or {})
+        provenance["license"] = args.license.strip()
         provenance["training_approved"] = True
         provenance["approval"] = {
-            "operator": args.operator,
+            "operator": args.operator.strip(),
             "approved_at": approved_at,
             "method": (
                 "manual-confirm-all"
                 if args.confirm_all
                 else "manual-id-list"
             ),
+            "previous_verification_status": previous_status,
         }
 
+        verification["status"] = "verified"
+        row["verification"] = verification
         row["provenance"] = provenance
         approved_ids.append(row_id)
+        approved_rows.append(row)
 
-    output = Path(args.output)
-    write_jsonl(rows, output)
+    if ids is not None and ids - set(approved_ids):
+        raise TrainingDataError(
+            f"Unbekannte IDs in Freigabeliste: {sorted(ids - set(approved_ids))}"
+        )
+    if not approved_rows:
+        raise TrainingDataError("Keine explizit freigegebenen Datensätze.")
+
+    write_jsonl(approved_rows, output)
 
     report = {
         "input": str(args.input),
         "output": str(output),
         "approved_count": len(approved_ids),
         "total_count": len(rows),
+        "exported_count": len(approved_rows),
         "license": args.license,
         "operator": args.operator,
         "approved_at": approved_at,
