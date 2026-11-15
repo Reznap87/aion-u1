@@ -21,7 +21,7 @@ def test_pilot_task_bank_is_valid() -> None:
         / "pilot.yaml"
     )
 
-    assert len(bank.tasks) == 12
+    assert len(bank.tasks) == 16
     assert len(bank.task_map()) == len(bank.tasks)
 
     capabilities = {
@@ -35,6 +35,60 @@ def test_pilot_task_bank_is_valid() -> None:
     assert "agent.tool_use" in capabilities
     assert "research.verification" in capabilities
     assert "safety.injection_resistance" in capabilities
+    assert "architecture.planning" in capabilities
+    assert "multimodal.grounding" in capabilities
+    assert "calibration.self_assessment" in capabilities
+    assert "efficiency.reproducible_responses" in capabilities
+
+
+def test_pilot_covers_every_capability() -> None:
+    """Jede Capability braucht auch Trainingsdaten, nicht nur Eval-Faelle."""
+
+    from aion_u1.capabilities import CapabilityRegistry
+
+    root = find_project_root()
+    registry = CapabilityRegistry.load(
+        root / "configs" / "capabilities.yaml"
+    )
+    bank = load_task_bank(
+        root
+        / "training"
+        / "configs"
+        / "tasks"
+        / "pilot.yaml"
+    )
+
+    covered = {task.capability for task in bank.tasks}
+    missing = sorted(
+        {spec.id for spec in registry.list()} - covered
+    )
+
+    assert missing == [], (
+        f"Pilot ohne Trainingsdaten: {missing}"
+    )
+
+
+def test_pilot_image_assets_exist() -> None:
+    root = find_project_root()
+    bank = load_task_bank(
+        root
+        / "training"
+        / "configs"
+        / "tasks"
+        / "pilot.yaml"
+    )
+
+    image_tasks = [
+        task for task in bank.tasks if task.modality == "image"
+    ]
+
+    assert image_tasks
+
+    for task in image_tasks:
+        assert task.image_path
+        assert (
+            root / task.image_path
+        ).is_file(), f"Bild fehlt: {task.image_path}"
 
 
 def test_json_verifier() -> None:
