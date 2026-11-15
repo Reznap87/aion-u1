@@ -1,3 +1,7 @@
+import math
+
+import pytest
+
 from aion_u1.audit import score_response
 from aion_u1.models import VerifierSpec
 
@@ -167,3 +171,65 @@ def test_audit_uses_pseudo_client_without_http() -> None:
     assert report.results[1].passed is True
     assert report.scores["tt"].overall_score == 1.0
     assert report.scores["tt"].errored == 1
+
+
+def _two_capability_registry() -> CapabilityRegistry:
+    return CapabilityRegistry([
+        CapabilitySpec(
+            id="cap.a", name="A", description="A", weight=0.6
+        ),
+        CapabilitySpec(
+            id="cap.b", name="B", description="B", weight=0.4
+        ),
+    ])
+
+
+def _capability_case(
+    capability: str, score: float | None
+) -> CaseResult:
+    return CaseResult(
+        teacher_alias="tt",
+        teacher_model_id="provider/model",
+        case_id=f"{capability}-{score}",
+        capability=capability,
+        prompt="42?",
+        response="",
+        score=score,
+        passed=score == 1.0,
+        verifier_type="exact_match",
+        latency_ms=0,
+    )
+
+
+def test_index_is_null_without_full_coverage() -> None:
+    scores = calculate_scores(
+        [_capability_case("cap.a", 1.0)],
+        _two_capability_registry(),
+    )
+    score = scores["tt"]
+    assert score.coverage == pytest.approx(0.6)
+    assert score.measured_score == 1.0
+    assert score.overall_score is None
+
+
+def test_index_is_weighted_geometric_mean_at_full_coverage() -> None:
+    scores = calculate_scores(
+        [_capability_case("cap.a", 0.5), _capability_case("cap.b", 1.0)],
+        _two_capability_registry(),
+    )
+    score = scores["tt"]
+    assert score.coverage == pytest.approx(1.0)
+    assert score.overall_score == pytest.approx(
+        math.exp(0.6 * math.log(0.5) + 0.4 * math.log(1.0))
+    )
+    assert score.measured_score == score.overall_score
+
+
+def test_zero_capability_score_zeroes_index() -> None:
+    scores = calculate_scores(
+        [_capability_case("cap.a", 0.0), _capability_case("cap.b", 1.0)],
+        _two_capability_registry(),
+    )
+    score = scores["tt"]
+    assert score.coverage == pytest.approx(1.0)
+    assert score.overall_score == 0.0

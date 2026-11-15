@@ -103,6 +103,7 @@ class CaseResult(BaseModel):
 class TeacherScore(BaseModel):
     teacher_alias: str
     overall_score: float | None = Field(ge=0, le=1)
+    measured_score: float | None = Field(ge=0, le=1)
     coverage: float = Field(ge=0, le=1)
     cases: int
     passed: int

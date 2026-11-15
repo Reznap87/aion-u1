@@ -272,17 +272,32 @@ def calculate_scores(
                     normalized_weight * math.log(score)
                 )
 
-            overall = (
+            measured_score = (
                 0.0
                 if logarithmic_sum == -math.inf
                 else math.exp(logarithmic_sum)
             )
         else:
-            overall = None  # Kein auswertbarer Case: nicht bewertet, nicht schlecht
+            measured_score = None  # Kein auswertbarer Case
+
+        # Der AION-Index ist erst mit voller Capability-Abdeckung
+        # auswertbar. Ohne volle Abdeckung wird None geliefert statt
+        # eines hochgewerteten Teilscores.
+        full_coverage = all(
+            spec.id in capability_scores
+            for spec in registry.list()
+        )
+
+        overall = (
+            measured_score
+            if measured_score is not None and full_coverage
+            else None
+        )
 
         scores[alias] = TeacherScore(
             teacher_alias=alias,
             overall_score=overall,
+            measured_score=measured_score,
             coverage=coverage,
             cases=len(teacher_results),
             passed=sum(result.passed for result in teacher_results),
