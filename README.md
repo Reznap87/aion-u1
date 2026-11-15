@@ -78,7 +78,7 @@ ist in [training/README.md](training/README.md) beschrieben.
 
 ## Multi-Teacher Data Factory
 
-Der Pilot umfasst 12 Aufgaben, Live-OpenRouter-Kandidatengenerierung,
+Der Pilot umfasst 16 Aufgaben, Live-OpenRouter-Kandidatengenerierung,
 deterministische und Docker-isolierte Python-Verifikation, Deduplizierung,
 Ranking, Preference-Pair-Export und CI-Validierung. Teacher-Ausgaben bleiben
 unbegutachtet, bis sie explizit für das Training freigegeben werden.

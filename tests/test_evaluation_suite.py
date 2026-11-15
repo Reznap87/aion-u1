@@ -74,3 +74,33 @@ def test_image_case_builds_multimodal_content() -> None:
     assert content[1]["image_url"]["url"].startswith(
         "data:image/png;base64,"
     )
+
+
+def test_pilot_and_suite_share_no_prompts() -> None:
+    """Trainings- und Eval-Items duerfen nicht identisch sein."""
+
+    from aion_u1.training.tasks import load_task_bank
+
+    root = _root()
+    cases = load_cases(
+        root
+        / "evaluations"
+        / "capability_suite"
+        / "smoke.yaml"
+    )
+    bank = load_task_bank(
+        root
+        / "training"
+        / "configs"
+        / "tasks"
+        / "pilot.yaml"
+    )
+
+    case_prompts = {
+        case.prompt.strip() for case in cases
+    }
+
+    for task in bank.tasks:
+        assert task.prompt.strip() not in case_prompts, (
+            f"Leakage: Task {task.id} ist identisch mit einem Suite-Case"
+        )

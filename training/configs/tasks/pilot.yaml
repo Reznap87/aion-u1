@@ -269,3 +269,92 @@ tasks:
       - gemini_3_8_flash
       - grok_4_7
       - kimi_k3_agent
+
+  - id: architecture.deployment_pattern
+    capability: architecture.planning
+    prompt: |
+      Ein Deployment muss ohne Downtime ausgerollt werden und bei einem
+      Fehler sofort in den vorherigen Zustand zurückrollbar sein. Welches
+      Muster ist am passendsten? Antworte ausschließlich als JSON mit dem
+      Schlüssel pattern und einem der Werte blue_green, big_bang, manual.
+    verifier:
+      type: json_equals
+      expected:
+        pattern: blue_green
+    teacher_aliases:
+      - minimax_m3_1_flash
+      - kimi_k3
+      - claude_fable_5_1
+      - gpt_6_1_sol
+      - claude_sonnet_5_5
+      - gemini_3_8_flash
+      - grok_4_7
+      - kimi_k3_agent
+    samples_per_teacher: 1
+    temperature: 0.1
+
+  - id: multimodal.green_triangles
+    capability: multimodal.grounding
+    modality: image
+    image_path: training/assets/shapes_2.png
+    prompt: |
+      Wie viele grüne Dreiecke sind auf dem Bild zu sehen? Antworte
+      ausschließlich mit der Zahl.
+    verifier:
+      type: exact_match
+      values:
+        - "3"
+    teacher_aliases:
+      - minimax_m3_1_flash
+      - kimi_k3
+      - claude_fable_5_1
+      - gpt_6_1_sol
+      - claude_sonnet_5_5
+      - gemini_3_8_flash
+      - grok_4_7
+      - kimi_k3_agent
+    samples_per_teacher: 1
+    temperature: 0.1
+
+  - id: calibration.confidence_arithmetic
+    capability: calibration.self_assessment
+    prompt: |
+      Was ist 23 * 19? Antworte ausschließlich als JSON mit den Feldern
+      answer (Zahl) und confidence (Zahl zwischen 0 und 1), zum Beispiel
+      {"answer": 437, "confidence": 0.9}.
+    verifier:
+      type: contains_all
+      values:
+        - "437"
+        - "confidence"
+    teacher_aliases:
+      - minimax_m3_1_flash
+      - kimi_k3
+      - claude_fable_5_1
+      - gpt_6_1_sol
+      - claude_sonnet_5_5
+      - gemini_3_8_flash
+      - grok_4_7
+      - kimi_k3_agent
+    samples_per_teacher: 1
+    temperature: 0.3
+
+  - id: efficiency.short_cache
+    capability: efficiency.reproducible_responses
+    prompt: |
+      Erkläre in höchstens 8 Wörtern, was ein Cache ist.
+    verifier:
+      type: regex
+      values:
+        - '^(?=.*Cache)\S+(\s+\S+){0,7}$'
+    teacher_aliases:
+      - minimax_m3_1_flash
+      - kimi_k3
+      - claude_fable_5_1
+      - gpt_6_1_sol
+      - claude_sonnet_5_5
+      - gemini_3_8_flash
+      - grok_4_7
+      - kimi_k3_agent
+    samples_per_teacher: 1
+    temperature: 0.1
