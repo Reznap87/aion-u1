@@ -4,9 +4,9 @@ capabilities:
   - id: code.synthesis
     name: Softwareentwicklung
     description: >-
-      Code erzeugen, ändern, erklären, debuggen und durch Tests oder
-      Compiler verifizieren.
-    weight: 0.17
+      Code erzeugen, ändern, erklären, debuggen und durch Compiler oder
+      Tests verifizieren.
+    weight: 0.14
     parents: []
     dimensions:
       - correctness
@@ -27,9 +27,9 @@ capabilities:
   - id: reasoning.logical
     name: Logisches Reasoning
     description: >-
-      Logische, mathematische und mehrstufige Schlussfolgerungen mit
+      Mathematische, logische und mehrstufige Schlussfolgerungen mit
       prüfbaren Endresultaten.
-    weight: 0.15
+    weight: 0.14
     parents: []
     dimensions:
       - correctness
@@ -45,6 +45,28 @@ capabilities:
       - exact_answer
       - symbolic_verifier
       - judge_review
+
+  - id: architecture.planning
+    name: Architektur und Produktplanung
+    description: >-
+      Systemarchitekturen, Produkt-Designentscheidungen und Handelsabschätzungen
+      verstehen, planen und begründen.
+    weight: 0.06
+    parents:
+      - reasoning.logical
+    dimensions:
+      - structural_correctness
+      - trade_off_analysis
+      - decision_justification
+    training_sources:
+      - design_reviews
+      - trade_off_datasets
+      - architectural_examples
+    runtime_tools: []
+    evaluation:
+      - structural_reasoning
+      - judgment_review
+      - design_check
 
   - id: long_context.retention
     name: Long Context
@@ -73,7 +95,7 @@ capabilities:
     description: >-
       Bilder, Dokumente, Diagramme und OCR-Inhalte verstehen und Aussagen
       sichtbar belegen.
-    weight: 0.10
+    weight: 0.08
     parents: []
     dimensions:
       - image_understanding
@@ -94,7 +116,7 @@ capabilities:
     description: >-
       Werkzeuge auswählen, strukturiert aufrufen, Ergebnisse verarbeiten,
       Fehler erkennen und sicher recoveren.
-    weight: 0.13
+    weight: 0.10
     parents:
       - code.synthesis
       - reasoning.logical
@@ -119,7 +141,7 @@ capabilities:
     description: >-
       Aktuelle oder fachliche Informationen recherchieren, Quellen prüfen und
       Unsicherheit kalibriert ausdrücken.
-    weight: 0.09
+    weight: 0.08
     parents:
       - reasoning.logical
       - long_context.retention
@@ -161,29 +183,6 @@ capabilities:
       - rubric_judge
       - human_review
 
-  - id: safety.injection_resistance
-    name: Safety und Injection-Abwehr
-    description: >-
-      Untrusted Input behandeln, Exfiltration verhindern, gefährliche Aktionen
-      verweigern und Policies zuverlässig anwenden.
-    weight: 0.10
-    parents: []
-    dimensions:
-      - prompt_injection
-      - data_exfiltration
-      - dangerous_actions
-      - policy_adherence
-    training_sources:
-      - adversarial_prompts
-      - tool_output_attacks
-      - safety_policies
-    runtime_tools:
-      - policy_engine
-    evaluation:
-      - attack_success_rate
-      - refusal_precision
-      - unsafe_action_rate
-
   - id: multilingual.quality
     name: Multilingualität
     description: >-
@@ -206,7 +205,7 @@ capabilities:
     name: Instruction Following
     description: >-
       Constraints, Formate und Ausgabeschemas zuverlässig einhalten.
-    weight: 0.04
+    weight: 0.03
     parents: []
     dimensions:
       - constraint_adherence
@@ -219,3 +218,70 @@ capabilities:
     evaluation:
       - schema_validation
       - constraint_checker
+
+  - id: calibration.self_assessment
+    name: Kalibrierte Selbsteinschätzung
+    description: >-
+      Die eigene Zuverlässigkeit korrekt einschätzen, Unsicherheit
+      kenntlich machen und Fehleinschätzungen erkennen.
+    weight: 0.04
+    parents:
+      - reasoning.logical
+    dimensions:
+      - confidence_calibration
+      - uncertainty_expression
+      - self_error_detection
+    training_sources:
+      - calibration_pairs
+      - self_assessment_examples
+      - feedback_on_predictions
+    runtime_tools: []
+    evaluation:
+      - calibration_brier
+      - confidence_accuracy_alignment
+      - self_error_detection
+
+  - id: safety.injection_resistance
+    name: Safety und Injection-Abwehr
+    description: >-
+      Untrusted Input behandeln, Exfiltration verhindern, gefährliche Aktionen
+      verweigern und Policies zuverlässig anwenden.
+    weight: 0.06
+    parents: []
+    dimensions:
+      - prompt_injection
+      - data_exfiltration
+      - dangerous_actions
+      - policy_adherence
+    training_sources:
+      - adversarial_prompts
+      - tool_output_attacks
+      - safety_policies
+    runtime_tools:
+      - policy_engine
+    evaluation:
+      - attack_success_rate
+      - refusal_precision
+      - unsafe_action_rate
+
+  - id: efficiency.reproducible_responses
+    name: Effiziente Antworten
+    description: >-
+      Reproduzierbares, kostengünstiges und token-effizientes Verhalten
+      unter Einhaltung der Konventionen.
+    weight: 0.05
+    parents:
+      - writing.quality
+      - instruction.structured_output
+    dimensions:
+      - token_efficiency
+      - latency
+      - reproducibility
+    training_sources:
+      - efficiency_examples
+      - reproducibility_examples
+    runtime_tools: []
+    evaluation:
+      - token_budget_check
+      - latency_report
+      - reproducibility_check
