@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .capabilities import CapabilityRegistry
+from .media import multimodal_content
 from .models import (
     AuditCase,
     AuditReport,
@@ -103,11 +104,30 @@ def score_response(
     return 0.0, "Unbekannter Verifier"
 
 
+def build_case_input(
+    case: AuditCase,
+    root: Path | None = None,
+) -> str | list[dict[str, Any]]:
+    if case.modality == "text":
+        return case.prompt
+
+    if not case.image_path:
+        raise ValueError(f"Case {case.id} benötigt image_path.")
+
+    return multimodal_content(
+        case.prompt,
+        case.image_path,
+        root or Path.cwd(),
+        case.image_mime_type,
+    )
+
+
 async def _run_case(
     client: TeacherClient,
     resolution: TeacherResolution,
     case: AuditCase,
     semaphore: asyncio.Semaphore,
+    root: Path | None = None,
 ) -> CaseResult:
     async with semaphore:
         try:
@@ -116,7 +136,7 @@ async def _run_case(
                 [
                     {
                         "role": "user",
-                        "content": case.prompt,
+                        "content": build_case_input(case, root),
                     }
                 ],
                 temperature=0,
@@ -163,6 +183,7 @@ async def run_audit(
     registry: CapabilityRegistry,
     *,
     concurrency: int = 4,
+    root: Path | None = None,
 ) -> AuditReport:
     semaphore = asyncio.Semaphore(max(1, concurrency))
     tasks: list[asyncio.Task[CaseResult]] = []
@@ -179,6 +200,7 @@ async def run_audit(
                         resolution,
                         case,
                         semaphore,
+                        root,
                     )
                 )
             )

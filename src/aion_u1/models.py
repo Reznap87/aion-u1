@@ -62,8 +62,19 @@ class AuditCase(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{1,95}$")
     capability: str
     prompt: str = Field(min_length=1)
+    modality: Literal["text", "image"] = "text"
+    image_path: str | None = None
+    image_mime_type: str = "image/png"
     verifier: VerifierSpec
     tags: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_modality(self) -> "AuditCase":
+        if self.modality == "image" and not self.image_path:
+            raise ValueError(
+                f"AuditCase {self.id} benötigt image_path."
+            )
+        return self
 
 
 class TeacherResponse(BaseModel):

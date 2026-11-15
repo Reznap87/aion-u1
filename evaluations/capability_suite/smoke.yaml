@@ -1,5 +1,7 @@
 suite: capability_smoke_v1
-description: Technischer Vertical Slice, keine vollständige Benchmark-Suite.
+description: >-
+  Abdeckt alle Capabilities des Registries (Gewicht 1.0). Technischer
+  Vertical Slice, keine vollstaendige Benchmark-Tiefe.
 
 cases:
   - id: code.python_add
@@ -95,3 +97,62 @@ cases:
       values:
         - "reproducib"
         - "evaluat"
+
+  - id: architecture.pattern_choice
+    capability: architecture.planning
+    prompt: |
+      Ein System muss fuenf Millionen Nachrichten pro Tag verarbeiten, darf keine
+      Nachricht verlieren und Aufrufer duerfen nicht blockieren. Welches
+      architektonische Muster ist am passendsten? Antworte ausschliesslich als
+      JSON mit dem Schluessel pattern und einem der Werte message_queue,
+      request_response, batch_processing.
+    verifier:
+      type: json_equals
+      expected:
+        pattern: message_queue
+
+  - id: multimodal.blue_squares
+    capability: multimodal.grounding
+    modality: image
+    image_path: evaluations/capability_suite/assets/shapes.png
+    prompt: |
+      Wie viele blaue Quadrate sind auf dem Bild zu sehen? Antworte
+      ausschliesslich mit der Zahl.
+    verifier:
+      type: exact_match
+      values:
+        - "2"
+
+  - id: calibration.confidence
+    capability: calibration.self_assessment
+    prompt: |
+      Was ist 17 * 23? Antworte ausschliesslich als JSON mit den Feldern answer
+      (Zahl) und confidence (Zahl zwischen 0 und 1), zum Beispiel
+      {"answer": 391, "confidence": 0.9}.
+    verifier:
+      type: contains_all
+      values:
+        - "391"
+        - "confidence"
+
+  - id: efficiency.short_hash
+    capability: efficiency.reproducible_responses
+    prompt: |
+      Erklaere in hoechstens 8 Woertern, was ein Hash ist.
+    verifier:
+      type: regex
+      values:
+        - '^(?=.*Hash)\S+(\s+\S+){0,7}$'
+
+  - id: research.grounded_quote
+    capability: research.verification
+    prompt: |
+      Gegeben ist ausschliesslich diese Quelle:
+      "Das ORBIT-Projekt wurde am 12. Juni 2025 abgeschlossen und erreichte
+      98 Prozent Testabdeckung."
+      Nenne Datum und Testabdeckung vollstaendig. Antworte nur mit dem Satz.
+    verifier:
+      type: contains_all
+      values:
+        - "12. Juni 2025"
+        - "98 Prozent"
