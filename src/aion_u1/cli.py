@@ -251,21 +251,21 @@ def command_dataset(args: argparse.Namespace) -> int:
         report_path.read_text(encoding="utf-8")
     )
 
-    candidates, training = build_dataset(report)
+    candidates, pending = build_dataset(report)
 
     output_path = Path(args.output)
-    verified_path = Path(args.verified_output)
+    pending_path = Path(args.pending_output)
 
     write_jsonl(candidates, output_path)
-    write_jsonl(training, verified_path)
+    write_jsonl(pending, pending_path)
 
     print(
         json.dumps(
             {
                 "candidates": len(candidates),
-                "verified_smoke_examples": len(training),
+                "pending_review_examples": len(pending),
                 "candidate_output": str(output_path),
-                "verified_output": str(verified_path),
+                "pending_output": str(pending_path),
             },
             ensure_ascii=False,
             indent=2,
@@ -345,8 +345,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/generated/teacher_candidates.jsonl",
     )
     dataset.add_argument(
-        "--verified-output",
-        default="data/verified/smoke_sft.jsonl",
+        "--pending-output",
+        default="data/generated/smoke_sft_pending.jsonl",
     )
     dataset.set_defaults(
         func=command_dataset,

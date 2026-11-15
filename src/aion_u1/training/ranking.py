@@ -77,6 +77,7 @@ def rank_candidates(
     preferences: list[
         dict[str, Any]
     ] = []
+    tasks_without_verified: list[str] = []
 
     for task_id in sorted(grouped):
         candidates = grouped[task_id]
@@ -193,8 +194,24 @@ def rank_candidates(
 
         deduplicated.extend(task_candidates)
 
-        if task_candidates:
-            best.append(task_candidates[0])
+        # `best` ist die Freigabe- und Trainings-Eingabe. Nur verifizierte
+        # Kandidaten kommen hinein; ein Task ohne bestandenen Kandidaten
+        # wird ausdrücklich statt stillschweigend mit einer abgelehnten
+        # Antwort geliefert.
+        verified_candidates = [
+            item
+            for item in task_candidates
+            if item.get(
+                "verification",
+                {},
+            ).get("status")
+            == "verified"
+        ]
+
+        if verified_candidates:
+            best.append(verified_candidates[0])
+        elif task_candidates:
+            tasks_without_verified.append(task_id)
 
         if len(task_candidates) >= 2:
             chosen = task_candidates[0]
@@ -269,6 +286,12 @@ def rank_candidates(
         ),
         "tasks_with_candidates": len(grouped),
         "best_candidates": len(best),
+        "tasks_without_verified_candidate": len(
+            tasks_without_verified
+        ),
+        "tasks_without_verified_candidate_ids": sorted(
+            tasks_without_verified
+        ),
         "preference_pairs": len(preferences),
         "verified_candidates": sum(
             row.get(

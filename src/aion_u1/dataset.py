@@ -11,8 +11,9 @@ from .models import AuditReport
 def build_dataset(
     report: AuditReport,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Exportiert Smoke-Erfolge zur manuellen Prüfung, nicht zum Training."""
     candidates: list[dict[str, Any]] = []
-    training: list[dict[str, Any]] = []
+    pending: list[dict[str, Any]] = []
 
     for result in report.results:
         digest = hashlib.sha256(
@@ -42,8 +43,8 @@ def build_dataset(
         }
         candidates.append(candidate)
 
-        if result.passed:
-            training.append(
+        if result.passed and result.error is None:
+            pending.append(
                 {
                     "id": candidate_id,
                     "messages": [
@@ -69,7 +70,7 @@ def build_dataset(
                         "teacher_model_id": result.teacher_model_id,
                     },
                     "verification": {
-                        "status": "verified",
+                        "status": "pending_review",
                         "score": result.score,
                         "method": (
                             f"smoke:{result.verifier_type}"
@@ -78,7 +79,7 @@ def build_dataset(
                 }
             )
 
-    return candidates, training
+    return candidates, pending
 
 
 def write_jsonl(

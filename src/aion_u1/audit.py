@@ -148,7 +148,7 @@ async def _run_case(
                 capability=case.capability,
                 prompt=case.prompt,
                 response="",
-                score=0.0,
+                score=None,
                 passed=False,
                 verifier_type=case.verifier.type,
                 latency_ms=0,
@@ -227,15 +227,19 @@ def calculate_scores(
             if result.teacher_alias == alias
         ]
 
+        evaluated_results = [
+            result for result in teacher_results
+            if result.error is None and result.score is not None
+        ]
         capability_ids = sorted(
-            {result.capability for result in teacher_results}
+            {result.capability for result in evaluated_results}
         )
         capability_scores: dict[str, float] = {}
 
         for capability_id in capability_ids:
             values = [
                 result.score
-                for result in teacher_results
+                for result in evaluated_results
                 if result.capability == capability_id
             ]
             capability_scores[capability_id] = (
@@ -268,20 +272,36 @@ def calculate_scores(
                     normalized_weight * math.log(score)
                 )
 
-            overall = (
+            measured_score = (
                 0.0
                 if logarithmic_sum == -math.inf
                 else math.exp(logarithmic_sum)
             )
         else:
-            overall = 0.0
+            measured_score = None  # Kein auswertbarer Case
+
+        # Der AION-Index ist erst mit voller Capability-Abdeckung
+        # auswertbar. Ohne volle Abdeckung wird None geliefert statt
+        # eines hochgewerteten Teilscores.
+        full_coverage = all(
+            spec.id in capability_scores
+            for spec in registry.list()
+        )
+
+        overall = (
+            measured_score
+            if measured_score is not None and full_coverage
+            else None
+        )
 
         scores[alias] = TeacherScore(
             teacher_alias=alias,
             overall_score=overall,
+            measured_score=measured_score,
             coverage=coverage,
             cases=len(teacher_results),
             passed=sum(result.passed for result in teacher_results),
+            errored=sum(result.error is not None for result in teacher_results),
             capability_scores=capability_scores,
         )
 

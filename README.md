@@ -37,8 +37,25 @@ aion-u1 audit \
 aion-u1 dataset \
   --report reports/audit-smoke.json \
   --output data/generated/teacher_candidates.jsonl \
-  --verified-output data/verified/smoke_sft.jsonl
+  --pending-output data/generated/smoke_sft_pending.jsonl
 ```
+
+Bestandene Smoke-Cases bleiben `pending_review`. Erst eine explizite Prüfung
+und Freigabe macht diese Beispiele trainingsrelevant. `--pending-output`
+ersetzt das frühere `--verified-output`.
+
+```bash
+aion-u1-approve-sft \
+  --input data/generated/smoke_sft_pending.jsonl \
+  --output data/verified/smoke_sft.jsonl \
+  --license "<geprüfte Lizenz>" --operator "<prüfende Person>" \
+  --ids-file review/approved_ids.txt
+```
+
+`review/approved_ids.txt` enthält je Zeile die ID eines tatsächlich geprüften
+Beispiels. Der Freigabebefehl exportiert ausschließlich freigegebene Zeilen.
+Die Lizenz und die Betreiberangabe müssen inhaltlich geprüft werden; der
+Befehl selbst führt keine Rechtsprüfung durch.
 
 Die Smoke-Suite ist nur ein technischer Vertical Slice. Sie ersetzt nicht das
 vollständige, blinde Capability-Benchmark.
@@ -53,8 +70,23 @@ pytest -q
 
 Die Teacher-IDs in `configs/teachers.yaml` sind Kandidaten. Sie gelten erst
 nach erfolgreicher Katalogverifikation als verfügbar.
-## Commit 2: Unified-SFT
 
-## Commit 3: Multi-Teacher Data Factory
+## Training
 
-Adds a 12-task capability pilot, live OpenRouter candidate generation, deterministic and Docker-isolated Python verification, deduplication, ranking, preference-pair export, and CI validation. Teacher outputs remain unreviewed until explicitly approved for training.
+Die Unified-SFT-Pipeline (Generieren, Ranken, Freigeben, Splitten, LoRA-SFT)
+ist in [training/README.md](training/README.md) beschrieben.
+
+## Multi-Teacher Data Factory
+
+Der Pilot umfasst 12 Aufgaben, Live-OpenRouter-Kandidatengenerierung,
+deterministische und Docker-isolierte Python-Verifikation, Deduplizierung,
+Ranking, Preference-Pair-Export und CI-Validierung. Teacher-Ausgaben bleiben
+unbegutachtet, bis sie explizit für das Training freigegeben werden.
+
+## Scoring
+
+`reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
+`measured_score` und `overall_score`. `overall_score` ist der AION-Index
+(gewichtetes geometrisches Mittel) und nur bei voller Capability-Abdeckung
+definiert. `measured_score` ist der geometrische Mittelwert über den getesteten
+Ausschnitt und ist bei unterschiedlicher Coverage nicht vergleichbar.

@@ -7,6 +7,7 @@ name = "aion-u1"
 version = "0.2.0"
 description = "Training and evaluation infrastructure for the AION-U1 unified model"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.27,<1",
