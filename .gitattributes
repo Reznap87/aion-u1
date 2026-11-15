@@ -1,0 +1,2 @@
+# This evaluation is byte-pinned; Windows checkouts must preserve its LF bytes.
+evaluations/comparison_v2_independent/holdout.jsonl text eol=lf
