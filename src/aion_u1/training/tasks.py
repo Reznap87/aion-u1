@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import re
 import shutil
@@ -12,6 +11,8 @@ from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from ..media import multimodal_content
 
 
 class TaskVerifier(BaseModel):
@@ -124,36 +125,18 @@ def build_task_input(
     task: TaskSpec,
     root: Path | None = None,
 ) -> str | list[dict[str, Any]]:
-    root = root or find_project_root()
-
     if task.modality == "text":
         return task.prompt
 
     if not task.image_path:
         raise ValueError(f"Task {task.id} benötigt image_path.")
 
-    image_path = root / task.image_path
-
-    if not image_path.is_file():
-        raise FileNotFoundError(
-            f"Bild für Task {task.id} fehlt: {image_path}"
-        )
-
-    encoded = base64.b64encode(
-        image_path.read_bytes()
-    ).decode("ascii")
-
-    data_url = (
-        f"data:{task.image_mime_type};base64,{encoded}"
+    return multimodal_content(
+        task.prompt,
+        task.image_path,
+        root or find_project_root(),
+        task.image_mime_type,
     )
-
-    return [
-        {"type": "text", "text": task.prompt},
-        {
-            "type": "image_url",
-            "image_url": {"url": data_url},
-        },
-    ]
 
 
 def _extract_json(text: str) -> Any:

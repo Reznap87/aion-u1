@@ -211,6 +211,7 @@ def command_audit(args: argparse.Namespace) -> int:
                 cases,
                 registry,
                 concurrency=args.concurrency,
+                root=root,
             )
         finally:
             await client.close()
