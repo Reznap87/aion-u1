@@ -745,35 +745,46 @@ def run_sft(
         processing_class=tokenizer,
     )
 
-    result = trainer.train(
-        resume_from_checkpoint=(
-            config.run.resume_from_checkpoint
-        )
-    )
-
-    final_model_dir = output_dir / "final_model"
-    trainer.save_model(str(final_model_dir))
-    tokenizer.save_pretrained(final_model_dir)
-
-    merged_dir: str | None = None
-
-    if (
-        config.peft.enabled
-        and config.peft.merge_and_save
-    ):
-        merged_model = model.merge_and_unload()
-        merged_model.config.use_cache = True
-
-        merged_path = output_dir / "merged_model"
-
-        merged_model.save_pretrained(
-            str(merged_path)
-        )
-        tokenizer.save_pretrained(
-            str(merged_path)
+    try:
+        result = trainer.train(
+            resume_from_checkpoint=(
+                config.run.resume_from_checkpoint
+            )
         )
 
-        merged_dir = str(merged_path)
+        final_model_dir = output_dir / "final_model"
+        trainer.save_model(str(final_model_dir))
+        tokenizer.save_pretrained(final_model_dir)
+
+        merged_dir: str | None = None
+
+        if (
+            config.peft.enabled
+            and config.peft.merge_and_save
+        ):
+            merged_model = model.merge_and_unload()
+            merged_model.config.use_cache = True
+
+            merged_path = output_dir / "merged_model"
+
+            merged_model.save_pretrained(
+                str(merged_path)
+            )
+            tokenizer.save_pretrained(
+                str(merged_path)
+            )
+
+            merged_dir = str(merged_path)
+
+    except Exception as exc:
+        # Ein Run-Manifest existiert bereits; ein Abbruch waehrend des
+        # Trainings darf nicht als "running" zurueckbleiben.
+        manifest["status"] = "failed"
+        manifest["error"] = (
+            f"{type(exc).__name__}: {exc}"
+        )[:2000]
+        _write_manifest(manifest_path, manifest)
+        raise
 
     manifest["status"] = "completed"
     manifest["metrics"] = result.metrics
