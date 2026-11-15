@@ -10,9 +10,7 @@ from aion_u1.cli import build_parser, command_dataset
 from aion_u1.dataset import build_dataset, write_jsonl
 from aion_u1.models import AuditReport, CaseResult
 from aion_u1.training.approve import main as approve_main
-from aion_u1.training.data import (
-    TrainingDataError, read_jsonl, select_canonical,
-)
+from aion_u1.training.data import read_jsonl, select_canonical
 
 
 def _result(
@@ -113,7 +111,10 @@ def test_approve_promotes_only_selected_rows(tmp_path: Path) -> None:
     )
 
 
-def test_approve_rejects_unknown_ids_without_export(tmp_path: Path) -> None:
+def test_approve_rejects_unknown_ids_without_export(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture,
+) -> None:
     _, rows = build_dataset(_report())
     source = tmp_path / "pending.jsonl"
     target = tmp_path / "verified" / "approved.jsonl"
@@ -121,18 +122,22 @@ def test_approve_rejects_unknown_ids_without_export(tmp_path: Path) -> None:
     write_jsonl(rows, source)
     ids_file.write_text("nonexistent-id\n", encoding="utf-8")
 
-    with pytest.raises(TrainingDataError, match="Unbekannte IDs"):
-        approve_main([
-            "--input", str(source),
-            "--output", str(target),
-            "--license", "reviewed-test-license",
-            "--operator", "test-reviewer",
-            "--ids-file", str(ids_file),
-        ])
+    assert approve_main([
+        "--input", str(source),
+        "--output", str(target),
+        "--license", "reviewed-test-license",
+        "--operator", "test-reviewer",
+        "--ids-file", str(ids_file),
+    ]) == 1
+
+    assert "Unbekannte IDs" in capsys.readouterr().err
     assert not target.exists()
 
 
-def test_approve_rejects_unverified_source(tmp_path: Path) -> None:
+def test_approve_rejects_unverified_source(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture,
+) -> None:
     _, rows = build_dataset(_report())
     rows[0]["verification"]["status"] = "unverified"
     source = tmp_path / "pending.jsonl"
@@ -140,12 +145,14 @@ def test_approve_rejects_unverified_source(tmp_path: Path) -> None:
     ids_file = tmp_path / "approved_ids.txt"
     write_jsonl(rows, source)
     ids_file.write_text(rows[0]["id"] + "\n", encoding="utf-8")
-    with pytest.raises(TrainingDataError, match="nicht für eine Freigabe"):
-        approve_main([
-            "--input", str(source),
-            "--output", str(target),
-            "--license", "reviewed-test-license",
-            "--operator", "test-reviewer",
-            "--ids-file", str(ids_file),
-        ])
+
+    assert approve_main([
+        "--input", str(source),
+        "--output", str(target),
+        "--license", "reviewed-test-license",
+        "--operator", "test-reviewer",
+        "--ids-file", str(ids_file),
+    ]) == 1
+
+    assert "nicht für eine Freigabe" in capsys.readouterr().err
     assert not target.exists()

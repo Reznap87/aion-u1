@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -53,6 +54,21 @@ def main(
 ) -> int:
     args = build_parser().parse_args(argv)
 
+    try:
+        return _execute(args)
+    except (
+        TrainingDataError,
+        OSError,
+        json.JSONDecodeError,
+    ) as exc:
+        print(
+            f"Fehler: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+
+def _execute(args: argparse.Namespace) -> int:
     if (
         not args.ids_file
         and not args.confirm_all
@@ -108,7 +124,10 @@ def main(
         previous_status = verification.get("status")
         if previous_status not in {"pending_review", "verified"}:
             raise TrainingDataError(
-                f"Datensatz {row_id} ist nicht für eine Freigabe vorbereitet."
+                f"Datensatz {row_id} hat Status {previous_status!r} und ist "
+                "nicht für eine Freigabe vorbereitet. Freigabe ist nur für "
+                "'pending_review' oder 'verified' möglich. Verwende als "
+                "Input z. B. best_candidates.jsonl."
             )
 
         provenance = dict(row.get("provenance") or {})
