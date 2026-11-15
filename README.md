@@ -90,3 +90,33 @@ unbegutachtet, bis sie explizit für das Training freigegeben werden.
 (gewichtetes geometrisches Mittel) und nur bei voller Capability-Abdeckung
 definiert. `measured_score` ist der geometrische Mittelwert über den getesteten
 Ausschnitt und ist bei unterschiedlicher Coverage nicht vergleichbar.
+
+## Eigene Modellfamilie für TankAI
+
+AION-U1 wird als eigener trainierter Modellpfad in TankAI weiterentwickelt.
+Commander, Memory, Werkzeuge und Ergebnisprüfung bleiben in TankAI Core.
+Die aktuelle Anbindung verwendet dessen vorhandenen Modelladapter.
+
+```bash
+aion-u1 model-check --run-dir artifacts/sft/pilot
+aion-u1 serve --run-dir artifacts/sft/pilot
+```
+
+Der lokale Inferenzdienst benötigt einen vollständigen, hashgebundenen
+Trainings-Export und einen eigenen `AION_U1_API_KEY`. Inferenzabhängigkeiten
+werden bei Bedarf mit `pip install -e ".[inference]"` installiert.
+Im Repository liegen keine trainierten AION-U1-Gewichte. Vor einem Modellstart
+die tatsächlichen Ressourcen prüfen; ein geladener Pilot belegt keine Qualität.
+
+Siehe [TankAI-Anbindung und Abnahmestand](docs/TANKAI_INTEGRATION.md).
+
+## Unterbrochene Teacher-Läufe fortsetzen
+
+Kandidaten werden während des Laufs gespeichert. Authentifizierungs-,
+Berechtigungs- und Zahlungsfehler mit HTTP 401, 402 oder 403 stoppen noch
+wartende Generierungen. `--resume` setzt fehlende Antworten fort; Bruchteile
+von US-Dollar bleiben in der Kostenstatistik erhalten. Wiederholungen
+vorübergehender Fehler benötigen eine explizit erhöhte Versuchsgrenze;
+standardmäßig wird nur einmal gesendet.
+
+Siehe [Fortsetzung, Report und Grenzen](docs/TEACHER_RECOVERY.md).

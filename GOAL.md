@@ -83,3 +83,30 @@ I = exp(sum(weight_i * ln(score_i)))
 
 Dadurch kann eine sehr starke Fähigkeit keine schwache andere Fähigkeit
 vollständig kompensieren.
+
+## Verbindlicher Ausbau aus der ursprünglichen Projektidee
+
+Die am 2. November 2026 bereitgestellte ursprüngliche Beschreibung präzisiert:
+
+- Ein Modell-Artifact, eine Modell-ID, ein gemeinsamer Tokenizer und ein
+  gemeinsamer Transformer bilden die ausgelieferte Einheit.
+- Ein intern trainiertes Mixture-of-Experts ist als Teil dieser Einheit möglich.
+- Native strukturierte Tool-Aufrufe und der Umgang mit Werkzeugergebnissen
+  werden trainiert und eigenständig evaluiert.
+- Text, Code, Bilder, Dokumente, Long Context, Safety und Kalibrierung benötigen
+  eigene unabhängige Holdouts. Entwicklungsdaten dürfen nicht als Holdout dienen.
+- Die 70B-Klasse, acht Experten und 131072 Kontexttoken sind Architekturziele.
+  Der bisher konfigurierte kleine textbasierte LoRA-Pilot erfüllt diese Ziele
+  nicht und bleibt ein technischer Trainingsprototyp.
+- Ein eigener Tokenizer muss gemeinsam mit dem Checkpoint versioniert werden.
+  Der aktuelle Pilot übernimmt den Tokenizer des Basismodells; ein neu
+  trainierter Tokenizer ist noch nicht implementiert.
+
+Die vorstehenden Ziele sind keine Messergebnisse. Safety und Tool-Erfolg
+benötigen zusätzlich vorab festgelegte Grenzen.
+
+Die nächste Entwicklung folgt der Trainingskette: nachvollziehbare
+Teacher-Kandidaten, deterministische Verifikation und Auswahl, Rechtefreigabe,
+reproduzierbares SFT, Spezialisten-/Merge- und Distillationsverfahren,
+Tool-/Vision-/Long-Context-Alignment und unabhängige Regressionsevaluation.
+Ein lokaler Inferenzdienst ist der Auslieferungsweg für den Checkpoint.

@@ -6,6 +6,7 @@ import importlib.metadata
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from ..inference import artifact_inventory
 from .config import (
     SFTConfig,
     find_project_root,
@@ -44,6 +46,21 @@ def _sha256(path: Path) -> str:
             digest.update(chunk)
 
     return digest.hexdigest()
+
+
+def _validate_split_isolation(train_rows: list[dict], eval_rows: list[dict]) -> None:
+    """Reject exact prompt and explicit group leakage between training and evaluation."""
+    def prompts(rows: list[dict]) -> set[str]:
+        return {json.dumps(row["messages"][:-1], ensure_ascii=False, sort_keys=True)
+                for row in rows}
+
+    def groups(rows: list[dict]) -> set[str]:
+        return {str(row["group_id"]) for row in rows if row.get("group_id")}
+
+    if prompts(train_rows) & prompts(eval_rows):
+        raise TrainingDataError("Trainings- und Evaluationsprompts überschneiden sich.")
+    if groups(train_rows) & groups(eval_rows):
+        raise TrainingDataError("Trainings- und Evaluationsgruppen überschneiden sich.")
 
 
 def _git_commit(
@@ -85,6 +102,18 @@ def _package_versions() -> dict[str, str]:
             versions[package] = "not-installed"
 
     return versions
+
+
+def trainable_parameter_hashes(model: Any) -> dict[str, str]:
+    """Hash the trainable state before and after actual optimizer steps."""
+    hashes = {}
+    for name, parameter in model.named_parameters():
+        if parameter.requires_grad:
+            values = parameter.detach().to(device="cpu").float().contiguous()
+            hashes[name] = hashlib.sha256(values.numpy().tobytes()).hexdigest()
+    if not hashes:
+        raise TrainingDataError("Das Modell hat keine trainierbaren Parameter.")
+    return hashes
 
 
 def _write_manifest(
@@ -177,6 +206,7 @@ def run_sft(
             AutoModelForCausalLM,
             AutoTokenizer,
             Trainer,
+            TrainerCallback,
             TrainingArguments,
         )
     except ImportError as exc:
@@ -243,6 +273,7 @@ def run_sft(
                 config.data.require_training_approval
             ),
         )
+        _validate_split_isolation(train_rows, eval_rows)
 
     os.environ.setdefault(
         "TOKENIZERS_PARALLELISM",
@@ -328,6 +359,19 @@ def run_sft(
         "_commit_hash",
         None,
     )
+    if resolved_revision is None:
+        local_base = Path(config.model.base_model)
+        source_path = local_base / "source_revision.json"
+        if source_path.is_file():
+            source = json.loads(source_path.read_text(encoding="utf-8"))
+            if (
+                source.get("revision") != config.model.revision
+                or source.get("model_sha256") != _sha256(local_base / "model.safetensors")
+            ):
+                raise TrainingDataError("Lokale Basisgewichte stimmen nicht mit der Modellrevision überein.")
+            resolved_revision = source["revision"]
+    if not resolved_revision:
+        raise TrainingDataError("Die Basisrevision konnte nicht reproduzierbar aufgelöst werden.")
 
     if config.peft.enabled:
         if not config.peft.target_modules:
@@ -638,173 +682,246 @@ def run_sft(
         manifest,
     )
 
-    arguments: dict[str, Any] = {
-        "output_dir": str(output_dir),
-        "overwrite_output_dir": (
-            config.run.overwrite_output_dir
-        ),
-        "num_train_epochs": (
-            config.training.num_train_epochs
-        ),
-        "per_device_train_batch_size": (
-            config.training.per_device_train_batch_size
-        ),
-        "per_device_eval_batch_size": (
-            config.training.per_device_eval_batch_size
-        ),
-        "gradient_accumulation_steps": (
-            config.training.gradient_accumulation_steps
-        ),
-        "learning_rate": (
-            config.training.learning_rate
-        ),
-        "weight_decay": config.training.weight_decay,
-        "warmup_ratio": config.training.warmup_ratio,
-        "lr_scheduler_type": (
-            config.training.lr_scheduler_type
-        ),
-        "max_grad_norm": (
-            config.training.max_grad_norm
-        ),
-        "optim": config.training.optim,
-        "logging_steps": config.training.logging_steps,
-        "logging_first_step": True,
-        "save_strategy": (
-            config.training.save_strategy
-        ),
-        "save_total_limit": (
-            config.training.save_total_limit
-        ),
-        "save_safetensors": True,
-        "eval_strategy": (
-            "epoch"
-            if eval_dataset
-            else "no"
-        ),
-        "load_best_model_at_end": bool(
-            eval_dataset
-            and config.training.load_best_model_at_end
-        ),
-        "metric_for_best_model": "eval_loss",
-        "greater_is_better": False,
-        "gradient_checkpointing": (
-            config.training.gradient_checkpointing
-        ),
-        "bf16": config.training.bf16,
-        "fp16": config.training.fp16,
-        "tf32": (
-            config.training.tf32
-            and cuda_available
-        ),
-        "full_determinism": (
-            config.training.full_determinism
-        ),
-        "seed": config.run.seed,
-        "data_seed": config.run.seed,
-        "report_to": [],
-        "remove_unused_columns": False,
-        "label_names": ["labels"],
-        "dataloader_num_workers": 0,
-        "dataloader_pin_memory": cuda_available,
-        "ddp_find_unused_parameters": False,
-        "logging_dir": str(
-            output_dir / "logs"
-        ),
-    }
-
-    if config.training.gradient_checkpointing:
-        arguments[
-            "gradient_checkpointing_kwargs"
-        ] = {
-            "use_reentrant": False,
+    try:
+        arguments: dict[str, Any] = {
+            "output_dir": str(output_dir),
+            "max_steps": config.training.max_steps,
+            "save_steps": config.training.save_steps,
+            "overwrite_output_dir": (
+                config.run.overwrite_output_dir
+            ),
+            "num_train_epochs": (
+                config.training.num_train_epochs
+            ),
+            "per_device_train_batch_size": (
+                config.training.per_device_train_batch_size
+            ),
+            "per_device_eval_batch_size": (
+                config.training.per_device_eval_batch_size
+            ),
+            "gradient_accumulation_steps": (
+                config.training.gradient_accumulation_steps
+            ),
+            "learning_rate": (
+                config.training.learning_rate
+            ),
+            "weight_decay": config.training.weight_decay,
+            "warmup_ratio": config.training.warmup_ratio,
+            "lr_scheduler_type": (
+                config.training.lr_scheduler_type
+            ),
+            "max_grad_norm": (
+                config.training.max_grad_norm
+            ),
+            "optim": config.training.optim,
+            "logging_steps": config.training.logging_steps,
+            "logging_first_step": True,
+            "save_strategy": (
+                config.training.save_strategy
+            ),
+            "save_total_limit": (
+                config.training.save_total_limit
+            ),
+            "save_safetensors": True,
+            "eval_strategy": (
+                ("steps" if config.training.save_strategy == "steps" else "epoch")
+                if eval_dataset
+                else "no"
+            ),
+            "eval_steps": config.training.save_steps,
+            "load_best_model_at_end": bool(
+                eval_dataset
+                and config.training.load_best_model_at_end
+            ),
+            "metric_for_best_model": "eval_loss",
+            "greater_is_better": False,
+            "gradient_checkpointing": (
+                config.training.gradient_checkpointing
+            ),
+            "bf16": config.training.bf16,
+            "fp16": config.training.fp16,
+            "tf32": (
+                config.training.tf32
+                and cuda_available
+            ),
+            "full_determinism": (
+                config.training.full_determinism
+            ),
+            "seed": config.run.seed,
+            "data_seed": config.run.seed,
+            "report_to": [],
+            "remove_unused_columns": False,
+            "label_names": ["labels"],
+            "dataloader_num_workers": 0,
+            "dataloader_pin_memory": cuda_available,
+            "ddp_find_unused_parameters": False,
+            "logging_dir": str(
+                output_dir / "logs"
+            ),
         }
 
-    if not eval_dataset:
-        arguments[
-            "load_best_model_at_end"
-        ] = False
+        if config.training.gradient_checkpointing:
+            arguments[
+                "gradient_checkpointing_kwargs"
+            ] = {
+                "use_reentrant": False,
+            }
 
-    if (
-        arguments["load_best_model_at_end"]
-        and config.training.save_strategy == "no"
-    ):
-        arguments[
-            "load_best_model_at_end"
-        ] = False
+        if not eval_dataset:
+            arguments[
+                "load_best_model_at_end"
+            ] = False
 
-    training_arguments = TrainingArguments(
-        **arguments
-    )
+        if (
+            arguments["load_best_model_at_end"]
+            and config.training.save_strategy == "no"
+        ):
+            arguments[
+                "load_best_model_at_end"
+            ] = False
 
-    trainer = Trainer(
-        model=model,
-        args=training_arguments,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        data_collator=collate_features,
-        processing_class=tokenizer,
-    )
-
-    result = trainer.train(
-        resume_from_checkpoint=(
-            config.run.resume_from_checkpoint
-        )
-    )
-
-    final_model_dir = output_dir / "final_model"
-    trainer.save_model(str(final_model_dir))
-    tokenizer.save_pretrained(final_model_dir)
-
-    merged_dir: str | None = None
-
-    if (
-        config.peft.enabled
-        and config.peft.merge_and_save
-    ):
-        merged_model = model.merge_and_unload()
-        merged_model.config.use_cache = True
-
-        merged_path = output_dir / "merged_model"
-
-        merged_model.save_pretrained(
-            str(merged_path)
-        )
-        tokenizer.save_pretrained(
-            str(merged_path)
+        training_arguments = TrainingArguments(
+            **arguments
         )
 
-        merged_dir = str(merged_path)
+        class StepCounter(TrainerCallback):
+            def __init__(self):
+                self.steps = 0
+                self.initial_hashes = None
 
-    manifest["status"] = "completed"
-    manifest["metrics"] = result.metrics
-    manifest["token_alignment_mismatches"] = (
-        train_dataset.alignment_mismatches
-        + (
-            eval_dataset.alignment_mismatches
-            if eval_dataset
-            else 0
+            def on_step_begin(self, args, state, control, **kwargs):
+                if self.initial_hashes is None:
+                    self.initial_hashes = trainable_parameter_hashes(kwargs["model"])
+                    manifest["initial_trainable_parameter_hashes"] = self.initial_hashes
+                    _write_manifest(manifest_path, manifest)
+                return control
+
+            def on_step_end(self, args, state, control, **kwargs):
+                self.steps += 1
+                return control
+
+        step_counter = StepCounter()
+        trainer = Trainer(
+            model=model,
+            args=training_arguments,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            data_collator=collate_features,
+            processing_class=tokenizer,
+            callbacks=[step_counter],
         )
-    )
-    manifest["artifacts"] = {
-        "final_model": str(final_model_dir),
-        "merged_model": merged_dir,
-    }
 
-    _write_manifest(
-        manifest_path,
-        manifest,
-    )
+        initial_hashes = trainable_parameter_hashes(model)
+        if eval_dataset and config.training.evaluate_before_training:
+            manifest["baseline_dev_metrics"] = trainer.evaluate(metric_key_prefix="baseline_dev")
+        manifest["initial_trainable_parameter_hashes"] = initial_hashes
+        _write_manifest(manifest_path, manifest)
+        result = trainer.train(
+            resume_from_checkpoint=(
+                config.run.resume_from_checkpoint
+            )
+        )
+        initial_hashes = step_counter.initial_hashes or initial_hashes
+        final_hashes = trainable_parameter_hashes(model)
+        changed = sum(final_hashes.get(name) != value for name, value in initial_hashes.items())
+        manifest["training_proof"] = {
+            "optimizer_steps": trainer.state.global_step,
+            "optimizer_steps_this_invocation": step_counter.steps,
+            "changed_trainable_tensors": changed,
+            "trainable_tensors": len(initial_hashes),
+            "initial_hashes": initial_hashes,
+            "final_hashes": final_hashes,
+        }
+        if changed == 0 or step_counter.steps < 1:
+            raise TrainingDataError("Keine tatsächliche Gewichtsänderung nachgewiesen.")
+        if eval_dataset:
+            manifest["final_dev_metrics"] = trainer.evaluate(metric_key_prefix="final_dev")
 
-    print(
-        json.dumps(
+        final_model_dir = output_dir / "final_model"
+        trainer.save_model(str(final_model_dir))
+        tokenizer.save_pretrained(final_model_dir)
+
+        merged_dir: str | None = None
+
+        if (
+            config.peft.enabled
+            and config.peft.merge_and_save
+        ):
+            merged_model = model.merge_and_unload()
+            merged_model.config.use_cache = True
+
+            merged_path = output_dir / "merged_model"
+
+            merged_model.save_pretrained(
+                str(merged_path)
+            )
+            tokenizer.save_pretrained(
+                str(merged_path)
+            )
+
+            merged_dir = str(merged_path)
+
+        for export_path in (final_model_dir, Path(merged_dir) if merged_dir else None):
+            if export_path is None:
+                continue
+            base_license = Path(config.model.base_model) / "LICENSE"
+            if base_license.is_file():
+                shutil.copyfile(base_license, export_path / "LICENSE.base-model")
+            (export_path / "AION_TRAINING_NOTICE.json").write_text(json.dumps({
+                "model": "AION-U1 pilot checkpoint",
+                "base_model": config.model.base_model,
+                "base_revision": resolved_revision,
+                "training_commit": manifest["git_commit"],
+                "modification": "Project-specific LoRA supervised fine-tuning",
+                "training_proof": manifest["training_proof"],
+                "quality_verified": False,
+            }, indent=2) + "\n", encoding="utf-8")
+        manifest["inference_artifacts"] = {
+            "final_model": artifact_inventory(final_model_dir),
+        }
+        if merged_dir:
+            manifest["inference_artifacts"]["merged_model"] = artifact_inventory(
+                Path(merged_dir)
+            )
+        manifest["status"] = "completed"
+        manifest["metrics"] = result.metrics
+        manifest["token_alignment_mismatches"] = (
+            train_dataset.alignment_mismatches
+            + (
+                eval_dataset.alignment_mismatches
+                if eval_dataset
+                else 0
+            )
+        )
+        manifest["artifacts"] = {
+            "final_model": str(final_model_dir),
+            "merged_model": merged_dir,
+        }
+
+        _write_manifest(
+            manifest_path,
             manifest,
-            ensure_ascii=False,
-            indent=2,
-            default=str,
         )
-    )
 
-    return output_dir
+        print(
+            json.dumps(
+                manifest,
+                ensure_ascii=False,
+                indent=2,
+                default=str,
+            )
+        )
+
+        return output_dir
+
+    except BaseException as exc:
+        manifest["status"] = "failed"
+        manifest["failure_type"] = type(exc).__name__
+        try:
+            _write_manifest(manifest_path, manifest)
+        except OSError:
+            pass
+        raise
 
 
 def build_parser() -> argparse.ArgumentParser:

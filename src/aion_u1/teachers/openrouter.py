@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 from ..models import TeacherResponse
-from .base import TeacherError, TeacherTransientError
+from .base import TeacherError, TeacherHTTPError, TeacherTransientError
 
 
 RETRYABLE_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
@@ -29,7 +29,7 @@ class OpenRouterClient:
         api_key: str,
         base_url: str = "https://openrouter.ai/api/v1",
         timeout: float = 180.0,
-        max_attempts: int = 3,
+        max_attempts: int = 1,
     ):
         self._api_key = api_key
         self._max_attempts = max(1, max_attempts)
@@ -60,10 +60,15 @@ class OpenRouterClient:
             )
             response.raise_for_status()
             payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            raise TeacherHTTPError(exc.response.status_code) from exc
         except httpx.HTTPError as exc:
             raise TeacherError(
-                f"Teacher-Katalog konnte nicht geladen werden: {exc}"
+                "Teacher-Katalog konnte nicht geladen werden."
             ) from exc
+
+        if not isinstance(payload, dict):
+            raise TeacherError("Ungültiger Teacher-Katalog")
 
         data = payload.get("data", [])
 
@@ -115,7 +120,7 @@ class OpenRouterClient:
             except httpx.HTTPStatusError as exc:
                 code = exc.response.status_code
                 if code not in RETRYABLE_STATUSES:
-                    raise TeacherError(f"Teacher HTTP {code}") from exc
+                    raise TeacherHTTPError(code) from exc
                 last_error = TeacherTransientError(
                     f"Teacher HTTP {code} nach Versuch "
                     f"{attempt}/{self._max_attempts}"
@@ -170,7 +175,7 @@ class OpenRouterClient:
 
         if isinstance(raw_usage, dict):
             for key, value in raw_usage.items():
-                if isinstance(value, (int, float)):
+                if key != "cost" and type(value) in (int, float):
                     usage[str(key)] = int(value)
 
         return TeacherResponse(
@@ -183,5 +188,6 @@ class OpenRouterClient:
                 else None
             ),
             usage=usage,
+            cost_usd=raw_usage.get("cost") if isinstance(raw_usage, dict) else None,
             latency_ms=int((time.monotonic() - started) * 1000),
         )
