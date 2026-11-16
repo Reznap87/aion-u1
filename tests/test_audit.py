@@ -61,7 +61,9 @@ def test_failed_verifier() -> None:
 
 import asyncio
 
-from aion_u1.audit import calculate_scores, run_audit
+from aion_u1.audit import (
+    calculate_scores, has_valid_measurement, run_audit,
+)
 from aion_u1.capabilities import CapabilityRegistry
 from aion_u1.models import (
     AuditCase, CapabilitySpec, CaseResult, TeacherConfig, TeacherResponse,
@@ -258,6 +260,24 @@ def test_audit_sendet_max_tokens() -> None:
     ))
 
     assert client.seen == [321, 321]
+
+
+def test_lauf_ohne_messung_ist_kein_ergebnis() -> None:
+    """Ein Audit-Lauf, in dem alles abgebrochen ist, zaehlt nicht als Ergebnis."""
+
+    assert has_valid_measurement([_case_result("c", 1.0)]) is True
+    assert has_valid_measurement([_truncated_result("c")]) is False
+
+    assert has_valid_measurement(
+        [_case_result("c", None, error="Timeout")]
+    ) is False
+
+    assert has_valid_measurement(
+        [
+            _case_result("a", 1.0),
+            _truncated_result("b"),
+        ]
+    ) is True
 
 
 def _two_capability_registry() -> CapabilityRegistry:

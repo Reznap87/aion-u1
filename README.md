@@ -38,6 +38,9 @@ eine Anfrage mit HTTP 402 ab, wenn die maximal möglichen Kosten
 skaliert in dem Fall automatisch herunter (bis 16) und wiederholt die
 Anfrage; auf einem Konto ohne Guthaben sind die Ergebnisse dadurch
 eingeschränkt. `truncated` im Report zeigt die betroffenen Fälle.
+Beendet sich der Lauf mit Exit 1, wenn er keine einzige verwertbare
+Messung erzeugt hat (alle Fälle abgebrochen oder abgeschnitten) — ein
+fehlgeschlagener Lauf kann so nicht als Ergebnis durchgehen.
 
 ## Pilot-SFT-Daten exportieren
 

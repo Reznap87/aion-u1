@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
-from .audit import run_audit
+from .audit import has_valid_measurement, run_audit
 from .capabilities import CapabilityRegistry
 from .dataset import build_dataset, write_jsonl
 from .models import AuditCase, AuditReport, TeacherConfig
@@ -242,6 +242,17 @@ def command_audit(args: argparse.Namespace) -> int:
                 indent=2,
             )
         )
+
+        if not has_valid_measurement(report.results):
+            print(
+                "Fehler: Keine verwertbare Messung — alle "
+                f"{len(report.results)} Fälle sind abgebrochen oder "
+                "abgeschnitten. Der Report ist kein Ergebnis; "
+                "Kontostand und --max-tokens prüfen.",
+                file=sys.stderr,
+            )
+            return 1
+
         return 0
 
     return asyncio.run(execute())
