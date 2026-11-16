@@ -62,11 +62,11 @@ teachers:
     model_id_env: GROK_4_7_MODEL_ID
     api_key_env: OPENROUTER_API_KEY
 
-  - alias: kimi_k3_agent
+  - alias: kimi_k2_7_code
     display_name: Kimi K2.7 Code
     provider: openrouter
     candidate_model_ids:
       - moonshotai/kimi-k2.7-code
       - moonshotai/kimi-k3
-    model_id_env: KIMI_K3_AGENT_MODEL_ID
+    model_id_env: KIMI_K2_7_CODE_MODEL_ID
     api_key_env: OPENROUTER_API_KEY
