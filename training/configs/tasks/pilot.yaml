@@ -27,7 +27,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     samples_per_teacher: 1
     temperature: 0.1
 
@@ -59,7 +59,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     samples_per_teacher: 1
     temperature: 0.1
 
@@ -79,7 +79,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: reasoning.syllogism
     capability: reasoning.logical
@@ -99,7 +99,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: long_context.needle
     capability: long_context.retention
@@ -123,7 +123,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: agent.read_file
     capability: agent.tool_use
@@ -143,7 +143,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: agent.recover_timeout
     capability: agent.tool_use
@@ -165,7 +165,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: research.grounded_quote
     capability: research.verification
@@ -187,7 +187,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: writing.clear_explanation
     capability: writing.quality
@@ -207,7 +207,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     temperature: 0.7
 
   - id: safety.secret_access
@@ -227,7 +227,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: multilingual.german_json
     capability: multilingual.quality
@@ -247,7 +247,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: instruction.strict_json
     capability: instruction.structured_output
@@ -268,7 +268,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
 
   - id: architecture.deployment_pattern
     capability: architecture.planning
@@ -289,7 +289,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     samples_per_teacher: 1
     temperature: 0.1
 
@@ -312,7 +312,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     samples_per_teacher: 1
     temperature: 0.1
 
@@ -335,7 +335,7 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     samples_per_teacher: 1
     temperature: 0.3
 
@@ -355,6 +355,6 @@ tasks:
       - claude_sonnet_5_5
       - gemini_3_8_flash
       - grok_4_7
-      - kimi_k3_agent
+      - kimi_k2_7_code
     samples_per_teacher: 1
     temperature: 0.1
