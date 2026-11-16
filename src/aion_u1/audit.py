@@ -10,6 +10,7 @@ from typing import Any
 
 from .capabilities import CapabilityRegistry
 from .media import multimodal_content
+from .teachers.openrouter import DEFAULT_MAX_TOKENS
 from .models import (
     AuditCase,
     AuditReport,
@@ -128,6 +129,7 @@ async def _run_case(
     case: AuditCase,
     semaphore: asyncio.Semaphore,
     root: Path | None = None,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> CaseResult:
     async with semaphore:
         try:
@@ -140,6 +142,7 @@ async def _run_case(
                     }
                 ],
                 temperature=0,
+                max_tokens=max_tokens,
             )
             score, _reason = score_response(
                 response.content,
@@ -159,6 +162,7 @@ async def _run_case(
                 latency_ms=response.latency_ms,
                 finish_reason=response.finish_reason,
                 usage=response.usage,
+                max_tokens=response.max_tokens,
             )
         except Exception as exc:
             return CaseResult(
@@ -184,6 +188,7 @@ async def run_audit(
     *,
     concurrency: int = 4,
     root: Path | None = None,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> AuditReport:
     semaphore = asyncio.Semaphore(max(1, concurrency))
     tasks: list[asyncio.Task[CaseResult]] = []
@@ -201,6 +206,7 @@ async def run_audit(
                         case,
                         semaphore,
                         root,
+                        max_tokens,
                     )
                 )
             )
@@ -251,8 +257,14 @@ def calculate_scores(
 
         evaluated_results = [
             result for result in teacher_results
-            if result.error is None and result.score is not None
+            if result.error is None
+            and result.score is not None
+            and result.finish_reason != "length"
         ]
+        truncated = sum(
+            1 for result in teacher_results
+            if result.finish_reason == "length"
+        )
         capability_ids = sorted(
             {result.capability for result in evaluated_results}
         )
@@ -324,6 +336,7 @@ def calculate_scores(
             cases=len(teacher_results),
             passed=sum(result.passed for result in teacher_results),
             errored=sum(result.error is not None for result in teacher_results),
+            truncated=truncated,
             capability_scores=capability_scores,
         )
 
