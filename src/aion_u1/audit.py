@@ -242,6 +242,21 @@ async def run_audit(
     )
 
 
+def has_valid_measurement(results: list[CaseResult]) -> bool:
+    """True, wenn mindestens ein Fall tatsaechlich gemessen wurde.
+
+    Abgebrochene und abgeschnittene Faelle sind keine Messung; ein Lauf
+    ohne einzigen verwertbaren Fall ist kein Ergebnis.
+    """
+
+    return any(
+        result.error is None
+        and result.finish_reason != "length"
+        and result.score is not None
+        for result in results
+    )
+
+
 def calculate_scores(
     results: list[CaseResult],
     registry: CapabilityRegistry,
