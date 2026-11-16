@@ -15,7 +15,7 @@ Die Ziel-Lehrermodelle sind:
 - anthropic/claude-sonnet-5.5
 - google/gemini-3.8-flash
 - x-ai/grok-4.7
-- moonshotai/kimi-k3-agent
+- moonshotai/kimi-k2.7-code
 
 Die tatsächlichen Modell-IDs, Verfügbarkeit, Nutzungsbedingungen und
 Lizenzen werden vor jedem Training empirisch verifiziert.
