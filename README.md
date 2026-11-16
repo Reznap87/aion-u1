@@ -28,8 +28,16 @@ Nur live im Provider-Katalog gefundene Modelle werden als `verified` markiert.
 ```bash
 aion-u1 audit \
   --suite evaluations/capability_suite/smoke.yaml \
+  --max-tokens 1024 \
   --output reports/audit-smoke.json
 ```
+
+`--max-tokens` begrenzt die Länge der Teacher-Antworten. OpenRouter lehnt
+eine Anfrage mit HTTP 402 ab, wenn die maximal möglichen Kosten
+(`max_tokens` × Modellpreis) das Kontolimit überschreiten. Der Client
+skaliert in dem Fall automatisch herunter (bis 16) und wiederholt die
+Anfrage; auf einem Konto ohne Guthaben sind die Ergebnisse dadurch
+eingeschränkt. `truncated` im Report zeigt die betroffenen Fälle.
 
 ## Pilot-SFT-Daten exportieren
 
@@ -86,7 +94,13 @@ unbegutachtet, bis sie explizit für das Training freigegeben werden.
 ## Scoring
 
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
-`measured_score` und `overall_score`. `overall_score` ist der AION-Index
-(gewichtetes geometrisches Mittel) und nur bei voller Capability-Abdeckung
-definiert. `measured_score` ist der geometrische Mittelwert über den getesteten
-Ausschnitt und ist bei unterschiedlicher Coverage nicht vergleichbar.
+`measured_score`, `overall_score`, `errored` und `truncated`.
+`overall_score` ist der AION-Index (gewichtetes geometrisches Mittel) und nur
+bei voller Capability-Abdeckung definiert. `measured_score` ist der
+geometrische Mittelwert über den getesteten Ausschnitt und ist bei
+unterschiedlicher Coverage nicht vergleichbar.
+
+`errored` zählt Fälle, die nicht beantwortet werden konnten, `truncated`
+solche mit `finish_reason: length`. Beide sind keine valide Messung:
+abgeschnittene Antworten reduzieren die Coverage, statt als vermeintliche
+0-Punkte den Index zu verzerren.

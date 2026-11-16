@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import httpx
 import pytest
 
 from aion_u1.teachers.base import TeacherError, TeacherTransientError
 from aion_u1.teachers.openrouter import (
-    OpenRouterClient, _retry_after_seconds,
+    DEFAULT_MAX_TOKENS, OpenRouterClient, _retry_after_seconds,
 )
 
 
@@ -22,7 +23,7 @@ def _response(status: int = 200, **kwargs) -> httpx.Response:
     return httpx.Response(status, **kwargs)
 
 
-async def _generate(handler, *, max_attempts=3):
+async def _generate(handler, *, max_attempts=3, max_tokens=None):
     client = OpenRouterClient(api_key="test", max_attempts=max_attempts)
     await client.close()
     client._client = httpx.AsyncClient(
@@ -30,10 +31,79 @@ async def _generate(handler, *, max_attempts=3):
     )
     try:
         return await client.generate(
-            "provider/model", [{"role": "user", "content": "42?"}]
+            "provider/model", [{"role": "user", "content": "42?"}],
+            max_tokens=max_tokens,
         )
     finally:
         await client.close()
+
+
+def test_openrouter_sendet_immer_max_tokens() -> None:
+    """Ohne Obergrenze antwortet OpenRouter auf Konten ohne Guthaben mit 402."""
+
+    seen: list[dict] = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return _response()
+
+    asyncio.run(_generate(handler))
+
+    assert seen[0]["max_tokens"] == DEFAULT_MAX_TOKENS
+
+
+def test_openrouter_max_tokens_ueberschreibt_default() -> None:
+    seen: list[dict] = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return _response()
+
+    asyncio.run(_generate(handler, max_tokens=7))
+
+    assert seen[0]["max_tokens"] == 7
+
+
+def test_openrouter_402_skaliert_herunter(monkeypatch) -> None:
+    """HTTP 402 = Kosten-Obergrenze; es wird mit kleinerer Obergrenze erneut versucht."""
+
+    import aion_u1.teachers.openrouter as module
+
+    async def fake_sleep(_seconds: float):
+        return None
+
+    monkeypatch.setattr(module.asyncio, "sleep", fake_sleep)
+    seen: list[dict] = []
+
+    def handler(request):
+        payload = json.loads(request.content)
+        seen.append(payload)
+        if payload["max_tokens"] > module.MIN_MAX_TOKENS:
+            return _response(402)
+        return _response()
+
+    answer = asyncio.run(_generate(handler, max_tokens=1024))
+
+    assert answer.content == "42"
+    assert answer.max_tokens == module.MIN_MAX_TOKENS
+    assert [item["max_tokens"] for item in seen] == [1024, 128, 16]
+
+
+def test_openrouter_402_ohne_reduktion_klar(monkeypatch) -> None:
+    import aion_u1.teachers.openrouter as module
+
+    async def fake_sleep(_seconds: float):
+        return None
+
+    monkeypatch.setattr(module.asyncio, "sleep", fake_sleep)
+
+    def handler(request):
+        return _response(402)
+
+    with pytest.raises(TeacherError, match="Kosten-Obergrenze"):
+        asyncio.run(
+            _generate(handler, max_tokens=module.MIN_MAX_TOKENS)
+        )
 
 
 def test_openrouter_retries_429_503_then_succeeds(monkeypatch) -> None:

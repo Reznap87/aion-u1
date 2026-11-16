@@ -83,6 +83,7 @@ class TeacherResponse(BaseModel):
     finish_reason: str | None = None
     usage: dict[str, int] = Field(default_factory=dict)
     latency_ms: int = 0
+    max_tokens: int | None = None
 
 
 class TeacherResolutionRecord(BaseModel):
@@ -109,6 +110,7 @@ class CaseResult(BaseModel):
     finish_reason: str | None = None
     usage: dict[str, int] = Field(default_factory=dict)
     error: str | None = None
+    max_tokens: int | None = None
 
 
 class TeacherScore(BaseModel):
@@ -119,6 +121,7 @@ class TeacherScore(BaseModel):
     cases: int
     passed: int
     errored: int = 0
+    truncated: int = 0
     capability_scores: dict[str, float]
 
 

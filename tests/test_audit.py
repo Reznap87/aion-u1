@@ -120,6 +120,51 @@ def test_all_errors_mean_not_evaluated() -> None:
     assert scores["tt"].errored == 1
 
 
+def _truncated_result(case_id: str) -> CaseResult:
+    return CaseResult(
+        teacher_alias="tt",
+        teacher_model_id="provider/model",
+        case_id=case_id,
+        capability="cap",
+        prompt="42?",
+        response="",
+        score=0.0,
+        passed=False,
+        verifier_type="exact_match",
+        latency_ms=0,
+        finish_reason="length",
+    )
+
+
+def test_abgeschnittene_antworten_sind_keine_messung() -> None:
+    """finish_reason=length ist keine valide Messung, auch nicht als 0."""
+
+    scores = calculate_scores(
+        [
+            _case_result("case1", 0.0),
+            _truncated_result("case2"),
+        ],
+        _registry(),
+    )
+
+    assert scores["tt"].capability_scores == {"cap": 0.0}
+    assert scores["tt"].coverage == 1.0
+    assert scores["tt"].truncated == 1
+    assert scores["tt"].errored == 0
+
+
+def test_nur_abgeschnittene_antworten_kein_index() -> None:
+    scores = calculate_scores(
+        [_truncated_result("case1")],
+        _registry(),
+    )
+
+    assert scores["tt"].capability_scores == {}
+    assert scores["tt"].coverage == 0.0
+    assert scores["tt"].overall_score is None
+    assert scores["tt"].truncated == 1
+
+
 def test_real_verifier_failure_is_zero_not_error() -> None:
     scores = calculate_scores([_case_result("case1", 0.0)], _registry())
     assert scores["tt"].capability_scores == {"cap": 0.0}
@@ -171,6 +216,48 @@ def test_audit_uses_pseudo_client_without_http() -> None:
     assert report.results[1].passed is True
     assert report.scores["tt"].overall_score == 1.0
     assert report.scores["tt"].errored == 1
+
+
+class RecordingClient:
+    def __init__(self) -> None:
+        self.seen: list[int | None] = []
+
+    async def generate(
+        self, model_id, messages, *, temperature=0.0, max_tokens=None
+    ):
+        self.seen.append(max_tokens)
+        return TeacherResponse(model_id=model_id, content="42")
+
+
+def test_audit_sendet_max_tokens() -> None:
+    """Das Fehlen von max_tokens loest bei OpenRouter HTTP 402 aus."""
+
+    verifier = VerifierSpec(type="exact_match", values=["42"])
+    resolution = TeacherResolution(
+        config=TeacherConfig(
+            alias="tt",
+            display_name="Teacher",
+            provider="openrouter",
+            candidate_model_ids=["provider/model"],
+        ),
+        model_id="provider/model",
+        status="verified",
+        source="test",
+    )
+    cases = [
+        AuditCase(
+            id=f"case{index}", capability="cap",
+            prompt="42?", verifier=verifier,
+        )
+        for index in (1, 2)
+    ]
+    client = RecordingClient()
+    asyncio.run(run_audit(
+        client, [resolution], cases, _registry(),
+        concurrency=1, max_tokens=321,
+    ))
+
+    assert client.seen == [321, 321]
 
 
 def _two_capability_registry() -> CapabilityRegistry:

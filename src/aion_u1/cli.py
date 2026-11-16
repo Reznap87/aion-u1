@@ -17,7 +17,7 @@ from .capabilities import CapabilityRegistry
 from .dataset import build_dataset, write_jsonl
 from .models import AuditCase, AuditReport, TeacherConfig
 from .teachers.base import TeacherError
-from .teachers.openrouter import OpenRouterClient
+from .teachers.openrouter import DEFAULT_MAX_TOKENS, OpenRouterClient
 from .teachers.resolver import TeacherResolution, resolve_teachers
 
 
@@ -212,6 +212,7 @@ def command_audit(args: argparse.Namespace) -> int:
                 registry,
                 concurrency=args.concurrency,
                 root=root,
+                max_tokens=args.max_tokens,
             )
         finally:
             await client.close()
@@ -328,6 +329,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--concurrency",
         type=int,
         default=4,
+    )
+    audit.add_argument(
+        "--max-tokens",
+        type=int,
+        default=DEFAULT_MAX_TOKENS,
     )
     audit.set_defaults(
         func=command_audit,
