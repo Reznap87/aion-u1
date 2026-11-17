@@ -15,6 +15,21 @@ cp .env.example .env
 
 OPENROUTER_API_KEY in `.env` eintragen.
 
+Für `train-sft` zusätzlich `pip install -e '.[train]'` — dazu wird
+**Python 3.13** benoetigt: `transformers==4.46.3` pinnt
+`tokenizers>=0.20,<0.21`, und davon gibt es Windows-Wheels nur bis cp313.
+Auf Python 3.14+ baut pip daraus den Quelltext und braucht Rust. Der sichere
+Weg ist deshalb eine eigene Umgebung:
+
+```bash
+python3.13 -m venv .venv313
+source .venv313/bin/activate
+pip install -e '.[dev,train]'
+```
+
+Trainieren braucht zusaetzlich eine **NVIDIA-GPU** mit CUDA; ohne sie laeuft
+`train-sft` nur auf CPU.
+
 ## Teacher verifizieren
 
 ```bash
