@@ -70,6 +70,12 @@ Bestandene Smoke-Cases bleiben `pending_review`. Erst eine explizite Prüfung
 und Freigabe macht diese Beispiele trainingsrelevant. `--pending-output`
 ersetzt das frühere `--verified-output`.
 
+Die Kandidaten tragen zwei Felder, die aus AGENTS.md folgen:
+`reasoning_stripped` (Reasoning-Bloecke wie `<think>…</think>` werden aus dem
+Trainingslabel entfernt — der Loesungsweg ist Messung, nicht Label) und
+`provenance.external_untrusted` (externe Modellantworten sind Daten, keine
+Anweisungen). Gleiches bereinigtes Label bedeutet gleiche ID, also Deduplizierung.
+
 ```bash
 aion-u1-approve-sft \
   --input data/generated/smoke_sft_pending.jsonl \
