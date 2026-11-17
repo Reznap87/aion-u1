@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from ..privacy import KIND_PII, KIND_SECRET, scan_row
 from .data import (
     TrainingDataError,
     read_jsonl,
@@ -44,6 +45,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--confirm-all",
         action="store_true",
+    )
+    parser.add_argument(
+        "--block-pii",
+        action="store_true",
+        help=(
+            "Auch personenbezogene Daten (E-Mail, IBAN) sperren; "
+            "sonst werden sie nur gezaehlt"
+        ),
     )
 
     return parser
@@ -106,6 +115,7 @@ def _execute(args: argparse.Namespace) -> int:
     approved_ids: list[str] = []
     approved_rows: list[dict] = []
     seen_ids: set[str] = set()
+    privacy_counts = {KIND_SECRET: 0, KIND_PII: 0}
 
     for row in rows:
         row_id = str(row.get("id", "")).strip()
@@ -119,6 +129,25 @@ def _execute(args: argparse.Namespace) -> int:
         )
         if not should_approve:
             continue
+
+        # AGENTS.md: "Keine Secrets oder personenbezogene Daten in Logs oder
+        # Datensaetzen." Secrets sperren immer, PII auf Wunsch.
+        findings = scan_row(row)
+        secrets = [
+            f for f in findings if f.kind == KIND_SECRET
+        ]
+        pii = [f for f in findings if f.kind == KIND_PII]
+
+        if secrets or (args.block_pii and pii):
+            raise TrainingDataError(
+                f"Datensatz {row_id} enthaelt unvertraegliche Inhalte "
+                f"({', '.join(f.describe() for f in (secrets or pii))}). "
+                "AGENTS.md verbietet Secrets und personenbezogene Daten in "
+                "Trainingsdatensaetzen."
+            )
+
+        privacy_counts[KIND_SECRET] += len(secrets)
+        privacy_counts[KIND_PII] += len(pii)
 
         verification = dict(row.get("verification") or {})
         previous_status = verification.get("status")
@@ -168,6 +197,7 @@ def _execute(args: argparse.Namespace) -> int:
         "license": args.license,
         "operator": args.operator,
         "approved_at": approved_at,
+        "privacy": privacy_counts,
     }
 
     if ids is not None:

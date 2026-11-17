@@ -83,6 +83,15 @@ Beispiels. Der Freigabebefehl exportiert ausschließlich freigegebene Zeilen.
 Die Lizenz und die Betreiberangabe müssen inhaltlich geprüft werden; der
 Befehl selbst führt keine Rechtsprüfung durch.
 
+### Secrets und personenbezogene Daten
+
+AGENTS.md verbietet Secrets und personenbezogene Daten in Datensätzen.
+`aion-u1 dataset` zählt Funde (`privacy.secret`, `privacy.pii`), und
+`approve-sft` sperrt eine Freigabe, wenn ein freigegebener Datensatz ein
+Secret enthält. `--block-pii` sperrt zusätzlich E-Mail-Adressen und IBANs;
+ohne den Schalter werden sie nur gezählt. Funde werden maskiert ausgegeben,
+sodass der Befund selbst nichts preisgibt.
+
 Die Smoke-Suite ist nur ein technischer Vertical Slice. Sie ersetzt nicht das
 vollständige, blinde Capability-Benchmark.
 

@@ -16,6 +16,7 @@ from .audit import has_valid_measurement, run_audit
 from .capabilities import CapabilityRegistry
 from .dataset import build_dataset, write_jsonl
 from .models import AuditCase, AuditReport, TeacherConfig
+from .privacy import scan_row, summarize
 from .teachers.base import TeacherError
 from .teachers.openrouter import DEFAULT_MAX_TOKENS, OpenRouterClient
 from .teachers.resolver import TeacherResolution, resolve_teachers
@@ -272,6 +273,14 @@ def command_dataset(args: argparse.Namespace) -> int:
     write_jsonl(candidates, output_path)
     write_jsonl(pending, pending_path)
 
+    # AGENTS.md: keine Secrets oder personenbezogenen Daten in Datensaetzen.
+    # Hier nur zaehlen und anzeigen; die harte Sperre liegt in approve-sft.
+    privacy_counts = summarize(
+        finding
+        for row in list(candidates) + list(pending)
+        for finding in scan_row(row)
+    )
+
     print(
         json.dumps(
             {
@@ -279,6 +288,7 @@ def command_dataset(args: argparse.Namespace) -> int:
                 "pending_review_examples": len(pending),
                 "candidate_output": str(output_path),
                 "pending_output": str(pending_path),
+                "privacy": privacy_counts,
             },
             ensure_ascii=False,
             indent=2,
