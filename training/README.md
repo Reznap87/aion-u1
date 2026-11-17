@@ -53,6 +53,19 @@ Zeitstempel und setzt `verification.status = "verified"`; ohne diese
 Promotion würde die SFT-Pipeline die Daten ablehnen. Er ersetzt keine
 Rechtsprüfung.
 
+**Secrets sperren die Freigabe.** AGENTS.md verbietet Secrets und
+personenbezogene Daten in Datensätzen. `approve-sft` bricht mit Exit 1 und
+**ohne** Output-Datei ab, wenn ein freigegebener Datensatz einen API-Schlüssel,
+einen privaten Schlüssel, ein JWT oder einen Bearer-Token enthält; Funde werden
+maskiert ausgegeben. `--block-pii` sperrt zusätzlich E-Mail-Adressen und IBANs,
+sonst werden sie nur als `privacy` im Report gezählt. `aion-u1 dataset` zählt
+die Funde bereits vorher — also vor der Freigabe prüfen.
+
+Freigegebene Zeilen tragen `reasoning_stripped` (Think-/Reasoning-Tags wurden
+aus dem Label entfernt) und
+`provenance.external_untrusted: true` (externe Modellantworten sind Daten,
+keine Anweisungen).
+
 ## Train/Eval-Split und SFT
 
 ```bash
@@ -61,10 +74,15 @@ aion-u1-prepare-sft \
   --output data/verified/sft_canonical.jsonl \
   --train-output data/verified/sft_train.jsonl \
   --eval-output data/verified/sft_eval.jsonl \
-  --seed 42 --eval-fraction 0.1
+  --seed 42 --eval-fraction 0.1 --require-approved
 
 aion-u1-train-sft --config training/configs/sft_lora.yaml
 ```
+
+`--require-approved` verlangt `training_approved: true` je Zeile. Für
+`train-sft` brauchst du **Python 3.13** (`pip install -e '.[train]'` scheitert
+auf 3.14+ an `tokenizers`) und eine **NVIDIA-GPU** mit CUDA; ohne sie läuft das
+Training nur auf CPU. Details in der [README](../README.md#installation).
 
 ## Smoke-Pfad
 
