@@ -16,7 +16,7 @@ from .audit import has_valid_measurement, run_audit
 from .capabilities import CapabilityRegistry
 from .dataset import build_dataset, write_jsonl
 from .models import AuditCase, AuditReport, TeacherConfig
-from .privacy import scan_row, summarize
+from .privacy import KIND_SECRET, scan_row, scan_text, summarize
 from .teachers.base import TeacherError
 from .teachers.openrouter import DEFAULT_MAX_TOKENS, OpenRouterClient
 from .teachers.resolver import TeacherResolution, resolve_teachers
@@ -224,6 +224,14 @@ def command_audit(args: argparse.Namespace) -> int:
         )
         report.suite_path = str(suite_path)
 
+        privacy_counts = summarize(
+            finding
+            for result in report.results
+            for finding in scan_text(
+                result.response or "", field="response"
+            )
+        )
+
         output_path = Path(args.output)
         write_json(
             output_path,
@@ -238,11 +246,23 @@ def command_audit(args: argparse.Namespace) -> int:
                         alias: score.model_dump()
                         for alias, score in report.scores.items()
                     },
+                    # AGENTS.md: keine Secrets in Logs — der Report ist
+                    # eine Datei und wird hier mitgescannt.
+                    "privacy": privacy_counts,
                 },
                 ensure_ascii=False,
                 indent=2,
             )
         )
+
+        if privacy_counts[KIND_SECRET]:
+            print(
+                "Warnung: Teacher-Antworten im Report enthalten "
+                f"{privacy_counts[KIND_SECRET]} Secret(s). Der Report "
+                "bleibt als Messung unveraendert; betroffene Zeilen nicht "
+                "freigeben.",
+                file=sys.stderr,
+            )
 
         if not has_valid_measurement(report.results):
             print(
