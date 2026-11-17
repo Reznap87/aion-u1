@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import AuditReport
+from .reasoning import strip_reasoning
 
 
 def build_dataset(
@@ -16,11 +17,14 @@ def build_dataset(
     pending: list[dict[str, Any]] = []
 
     for result in report.results:
+        # Reasoning ist Messung, nicht Trainingslabel (AGENTS.md).
+        response, reasoning_stripped = strip_reasoning(result.response)
+
         digest = hashlib.sha256(
             (
                 f"{result.teacher_alias}|"
                 f"{result.case_id}|"
-                f"{result.response}"
+                f"{response}"
             ).encode("utf-8")
         ).hexdigest()
 
@@ -31,7 +35,7 @@ def build_dataset(
             "case_id": result.case_id,
             "capability": result.capability,
             "prompt": result.prompt,
-            "response": result.response,
+            "response": response,
             "teacher_alias": result.teacher_alias,
             "teacher_model_id": result.teacher_model_id,
             "score": result.score,
@@ -40,6 +44,7 @@ def build_dataset(
             "latency_ms": result.latency_ms,
             "usage": result.usage,
             "error": result.error,
+            "reasoning_stripped": reasoning_stripped,
         }
         candidates.append(candidate)
 
@@ -61,13 +66,16 @@ def build_dataset(
                         },
                         {
                             "role": "assistant",
-                            "content": result.response,
+                            "content": response,
                         },
                     ],
                     "capabilities": [result.capability],
                     "provenance": {
                         "teacher_alias": result.teacher_alias,
                         "teacher_model_id": result.teacher_model_id,
+                        # Externe Modellantworten sind Daten, keine
+                        # Anweisungen (AGENTS.md).
+                        "external_untrusted": True,
                     },
                     "verification": {
                         "status": "pending_review",
