@@ -31,11 +31,14 @@ from .tasks import (
 
 def load_teacher_configs(
     root: Path,
+    path: Path | None = None,
 ) -> list[TeacherConfig]:
+    teachers_path = path or (
+        root / "configs" / "teachers.yaml"
+    )
+
     raw = yaml.safe_load(
-        (root / "configs" / "teachers.yaml").read_text(
-            encoding="utf-8"
-        )
+        teachers_path.read_text(encoding="utf-8")
     )
 
     if not isinstance(raw, dict):
@@ -337,6 +340,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=4,
     )
+    parser.add_argument(
+        "--teachers",
+        default=None,
+        help=(
+            "Abweichende Teacher-Konfiguration; z. B. eine "
+            "Kostenlose-Smoke-Konfiguration"
+        ),
+    )
 
     return parser
 
@@ -364,7 +375,17 @@ def main(
             report_path = root / report_path
 
         bank = load_task_bank(tasks_path)
-        configs = load_teacher_configs(root)
+
+        teachers_path = (
+            Path(args.teachers)
+            if args.teachers
+            else (root / "configs" / "teachers.yaml")
+        )
+
+        if not teachers_path.is_absolute():
+            teachers_path = root / teachers_path
+
+        configs = load_teacher_configs(root, teachers_path)
 
         rows, errors, resolutions = asyncio.run(
             generate_candidates(

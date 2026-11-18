@@ -124,6 +124,13 @@ deterministische und Docker-isolierte Python-Verifikation, Deduplizierung,
 Ranking, Preference-Pair-Export und CI-Validierung. Teacher-Ausgaben bleiben
 unbegutachtet, bis sie explizit für das Training freigegeben werden.
 
+`aion-u1-generate-candidates` liest die Teacher aus
+`configs/teachers.yaml`; mit `--teachers` lässt sich eine abweichende
+Konfiguration angeben — praktisch für einen Mechanik-Test der Kette mit
+kostenlosen `:free`-Modellen, ohne die Ziel-Lehrer zu verändern. Die
+freigegebenen Daten bleiben dabei deren Modellen geschuldet, nicht denen der
+Ziel-Lehrer.
+
 ## Scoring
 
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
