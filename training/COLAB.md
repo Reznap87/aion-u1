@@ -1,0 +1,85 @@
+# SFT in Google Colab (kostenlos)
+
+Für den Fall, dass keine lokale NVIDIA-GPU zur Verfuegung steht: Colabs Free-Tier
+stellt eine **Tesla T4 mit 16 GB VRAM** bereit. Das genuegt fuer den Piloten
+(Qwen2.5-1.5B-Instruct, LoRA r=16, `max_seq_length 4096`, Batch 1,
+Gradient-Checkpointing).
+
+Voraussetzungen: ein Google-Konto. Die GPU-Auswahl faellt unter
+`Laufzeit > Laufzeittyp aendern > T4 GPU`.
+
+## 1. Repo klonen
+
+```python
+!git clone https://github.com/Reznap87/aion-u1.git
+%cd aion-u1
+```
+
+Falls das Repo privat ist, zuerst einen Token in Colab hinterlegen und die URL
+damit bauen; den Token nicht hier hineinschreiben.
+
+## 2. Train-Extras installieren
+
+```python
+!pip install -e '.[train]'
+```
+
+Python 3.10–3.13 verwenden: `transformers==4.46.3` pinnt
+`tokenizers>=0.20,<0.21`, und davon gibt es keine Wheels fuer Python 3.14+.
+
+## 3. Trainingsdaten einlegen
+
+`data/` ist in `.gitignore` — ein Klon enthaelt sie **nicht**. Die beiden
+Dateien aus der lokalen Pipeline hochladen und hier ablegen:
+
+```python
+from google.colab import files
+uploaded = files.upload()   # data/verified/sft_train.jsonl und sft_eval.jsonl
+
+import os
+os.makedirs("data/verified", exist_ok=True)
+for name in ("sft_train.jsonl", "sft_eval.jsonl"):
+    os.replace(name, f"data/verified/{name}")
+```
+
+Ohne freigegebene Daten keinen Trainingslauf starten — AGENTS.md verlangt
+`training_approved: true` je Zeile.
+
+## 4. Config: fp16 und Lizenzfreigabe
+
+Die T4 (Turing, sm_75) unterstuetzt **kein bf16** — das steht in
+`training/configs/sft_lora.yaml` auf `bf16: false, fp16: false`. Fuer Colab:
+
+```python
+import re, pathlib
+p = pathlib.Path("training/configs/sft_lora.yaml")
+t = p.read_text(encoding="utf-8")
+t = t.replace("fp16: false", "fp16: true")
+p.write_text(t, encoding="utf-8")
+```
+
+`model.license_acknowledged: true` setzt die Lizenzpruefung des Betreibers um.
+Dokumentiert: Qwen2.5 (Varianten bis 1.5B) sind unter **Apache License 2.0**
+veroeffentlicht, ohne MAU-Schwelle — <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/LICENSE>.
+Ohne diese Pruefung weigert sich `train-sft`.
+
+## 5. Training starten
+
+```python
+!aion-u1-train-sft --config training/configs/sft_lora.yaml
+```
+
+Ergebnis: `artifacts/sft/pilot/run_manifest.json` (Datenhash, Revision,
+Paketversionen, Seed, Git-Commit, Metriken). `status` muss `completed` sein;
+ein Abbruch steht als `failed`.
+
+## 6. Artefakte sichern
+
+```python
+from google.colab import files
+!zip -r sft_pilot.zip artifacts/sft/pilot
+files.download("sft_pilot.zip")
+```
+
+Die Session loescht den Arbeitsspeicher nach der Laufzeit — Manifest und
+Checkpoints herunterladen, bevor die Verbindung dropt.

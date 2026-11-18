@@ -84,6 +84,10 @@ aion-u1-train-sft --config training/configs/sft_lora.yaml
 auf 3.14+ an `tokenizers`) und eine **NVIDIA-GPU** mit CUDA; ohne sie läuft das
 Training nur auf CPU. Details in der [README](../README.md#installation).
 
+Ohne eigene GPU: [COLAB.md](COLAB.md) beschreibt den Lauf in Google Colabs
+kostenloser T4 (16 GB) — inklusive `fp16: true` für Turing und der
+Lizenzfreigabe des Basismodells.
+
 ## Smoke-Pfad
 
 Der Smoke-Export liefert nur `pending_review`-Zeilen nach
