@@ -6,7 +6,6 @@ import importlib.metadata
 import json
 import os
 import platform
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -49,20 +48,65 @@ def _sha256(path: Path) -> str:
 def _git_commit(
     root: Path,
 ) -> str | None:
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+    """Commit direkt aus `.git` lesen.
 
-        return result.stdout.strip()
+    Ein Git-Aufruf ueber `subprocess` ist hier nicht verlaesslich: auf
+    Windows liegt `git` teilweise nur als App-Alias oder in einem
+    fremden Programmverzeichnis, und ein Subprozess wird dann mit
+    `OSError: [WinError 5] Zugriff verweigert` abgelehnt — der Commit
+    fehlte im Manifest, ohne dass jemand etwas merkte.
+    """
+
+    git_dir = root / ".git"
+
+    try:
+        if git_dir.is_file():
+            # Worktree oder Linked Worktree: `.git` ist eine Datei.
+            text = git_dir.read_text(
+                encoding="utf-8"
+            ).strip()
+            if not text.startswith("gitdir:"):
+                return None
+            git_dir = (
+                root / text.split(":", 1)[1].strip()
+            ).resolve()
+
+        head = (
+            git_dir / "HEAD"
+        ).read_text(encoding="utf-8").strip()
+
+        if not head.startswith("ref: "):
+            # Detached HEAD: steht direkt der Commit.
+            return head or None
+
+        ref = head.split(":", 1)[1].strip()
+        ref_file = git_dir / ref
+        if ref_file.is_file():
+            return (
+                ref_file.read_text(
+                    encoding="utf-8"
+                ).strip()
+                or None
+            )
+
+        # Geschlossener Branch: der Commit steht in `packed-refs`
+        # (<sha> <ref>, Kommentare und Peel-Zeilen ueberspringen).
+        packed = git_dir / "packed-refs"
+        if packed.is_file():
+            for line in packed.read_text(
+                encoding="utf-8"
+            ).splitlines():
+                if line.startswith(("#", "^")):
+                    continue
+                parts = line.split(" ", 1)
+                if len(parts) == 2 and parts[1] == ref:
+                    return parts[0].strip() or None
+
+        return None
 
     except (
         OSError,
-        subprocess.CalledProcessError,
+        UnicodeDecodeError,
     ):
         return None
 

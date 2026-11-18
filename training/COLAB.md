@@ -45,23 +45,24 @@ for name in ("sft_train.jsonl", "sft_eval.jsonl"):
 Ohne freigegebene Daten keinen Trainingslauf starten — AGENTS.md verlangt
 `training_approved: true` je Zeile.
 
-## 4. Config: fp16 und Lizenzfreigabe
+## 4. Config: fp16 fuer Turing
 
-Die T4 (Turing, sm_75) unterstuetzt **kein bf16** — das steht in
-`training/configs/sft_lora.yaml` auf `bf16: false, fp16: false`. Fuer Colab:
+Die T4 (Turing, sm_75) unterstuetzt **kein bf16** — die Config hat
+`bf16: false, fp16: false`. Fuer Colab:
 
 ```python
-import re, pathlib
+import pathlib
 p = pathlib.Path("training/configs/sft_lora.yaml")
-t = p.read_text(encoding="utf-8")
-t = t.replace("fp16: false", "fp16: true")
-p.write_text(t, encoding="utf-8")
+p.write_text(
+    p.read_text(encoding="utf-8").replace("fp16: false", "fp16: true"),
+    encoding="utf-8",
+)
 ```
 
-`model.license_acknowledged: true` setzt die Lizenzpruefung des Betreibers um.
-Dokumentiert: Qwen2.5 (Varianten bis 1.5B) sind unter **Apache License 2.0**
-veroeffentlicht, ohne MAU-Schwelle — <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/LICENSE>.
-Ohne diese Pruefung weigert sich `train-sft`.
+`model.license_acknowledged: true` steht in der Committeden Config; die
+Grundlage ist Apache-2.0 (Qwen2.5 bis 1.5B) ohne MAU-Schwelle —
+<https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/LICENSE>. Ohne
+diese Freigabe weigert sich `train-sft`.
 
 ## 5. Training starten
 
