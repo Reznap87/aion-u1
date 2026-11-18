@@ -17,7 +17,7 @@ model:
   trust_remote_code: false
   dtype: auto
   attn_implementation: eager
-  license_acknowledged: false
+  license_acknowledged: true
 
 peft:
   enabled: true
