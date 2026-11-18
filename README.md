@@ -137,3 +137,8 @@ unterschiedlicher Coverage nicht vergleichbar.
 solche mit `finish_reason: length`. Beide sind keine valide Messung:
 abgeschnittene Antworten reduzieren die Coverage, statt als vermeintliche
 0-Punkte den Index zu verzerren.
+
+`provenance` trägt Code- und Konfigurationsstand (`package_version`,
+`git_commit`, `python`, Hashes von Suite-, Teacher- und Capability-Datei)
+sowie den Aufruf — damit ist der Report reprozierbar (GOAL.md, Definition of
+Done Punkt 7).
