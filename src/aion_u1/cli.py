@@ -17,6 +17,7 @@ from .capabilities import CapabilityRegistry
 from .dataset import build_dataset, write_jsonl
 from .models import AuditCase, AuditReport, TeacherConfig
 from .privacy import KIND_SECRET, scan_row, scan_text, summarize
+from .provenance import collect as collect_provenance
 from .teachers.base import TeacherError
 from .teachers.openrouter import DEFAULT_MAX_TOKENS, OpenRouterClient
 from .teachers.resolver import TeacherResolution, resolve_teachers
@@ -223,6 +224,18 @@ def command_audit(args: argparse.Namespace) -> int:
             suite_path.stem,
         )
         report.suite_path = str(suite_path)
+
+        report.provenance = collect_provenance(
+            root,
+            {
+                "suite": suite_path,
+                "teachers": teacher_path,
+                "capabilities": (
+                    root / "configs" / "capabilities.yaml"
+                ),
+            },
+            command=sys.argv[1:],
+        )
 
         privacy_counts = summarize(
             finding

@@ -133,3 +133,6 @@ class AuditReport(BaseModel):
     teacher_resolutions: list[TeacherResolutionRecord]
     results: list[CaseResult]
     scores: dict[str, TeacherScore]
+    # Provenienz fuer Definition of Done Punkt 7 (reproduzierbarer
+    # Evaluationsbericht): Code-Version, Commit, Config- und Suite-Hashes.
+    provenance: dict[str, Any] | None = None
