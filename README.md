@@ -123,6 +123,33 @@ sodass der Befund selbst nichts preisgibt.
 Die Smoke-Suite ist nur ein technischer Vertical Slice. Sie ersetzt nicht das
 vollständige, blinde Capability-Benchmark.
 
+## Volle Capability-Suite
+
+```bash
+aion-u1 audit \
+  --suite evaluations/capability_suite/benchmark_v1.yaml \
+  --max-tokens 1024 \
+  --output reports/audit-benchmark.json
+```
+
+`benchmark_v1.yaml` deckt alle 13 Capabilities des Registries mit je drei Fällen
+über verschiedene Dimensionen ab — damit ist der AION-Index nicht nur definiert,
+sondern hat Tiefe. Jeder Fall hat einen deterministischen Verifier; eine
+Erwartung muss sich aus dem Prompt eindeutig ableiten lassen, sonst darf der
+Fall nicht in die Suite.
+
+Die Bild-Assets `diagram.png` und `ocr_label.png` werden reproduzierbar aus
+`scripts/make_suite_assets.py` erzeugt (stdlib-only, ohne PIL):
+
+```bash
+python scripts/make_suite_assets.py
+```
+
+Die Struktur der Suite wird in `tests/test_benchmark_suite.py` geprüft: volle
+Abdeckung (mindestens drei Fälle je Capability), eindeutige IDs, bekannte
+Verifier, kompilierbare Regexe, vorhandene Bilder und keine Leakage zu den
+Trainings-Tasks.
+
 ## Tests
 
 ```bash
