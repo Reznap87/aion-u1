@@ -1,0 +1,86 @@
+version: 1
+
+# Mechanik-Test der Generierungskette mit den kostenlosen Modellen aus
+# configs/teachers.free.yaml. Bewusst klein gehalten: die Kette muss
+# (Generieren -> Verifizieren -> Ranking -> Export) ohne Kontoguthaben
+# durchlaufen, bevor sie fuer die Ziel-Lehrer genutzt wird.
+tasks:
+  - id: free.code_add
+    capability: code.synthesis
+    prompt: |
+      Implementiere in Python eine Funktion add(a, b), die a + b zurückgibt.
+      Gib nur Python-Code aus.
+    verifier:
+      type: python_code
+      timeout_seconds: 20
+      test_code: |
+        import unittest
+        import solution
+
+        class AddTests(unittest.TestCase):
+            def test_add(self):
+                self.assertEqual(solution.add(2, 3), 5)
+                self.assertEqual(solution.add(-1, 1), 0)
+
+        unittest.main()
+    teacher_aliases:
+      - ernie_5_5_flash
+      - particle_1
+      - north_mini_code
+      - nemotron_3_5_lightning
+    samples_per_teacher: 1
+    temperature: 0.1
+
+  - id: free.reasoning_arith
+    capability: reasoning.logical
+    prompt: |
+      Ein Laden kauft 12 Kisten mit je 12 Flaschen fuer je 12 Euro ein und
+      verkauft jede Flasche fuer 2 Euro. Wie viel Euro bleiben uebrig, wenn alle
+      Flaschen verkauft sind? Antworte ausschliesslich als JSON im Format
+      {"answer": <Zahl>}.
+    verifier:
+      type: json_equals
+      expected:
+        answer: 144
+    teacher_aliases:
+      - ernie_5_5_flash
+      - particle_1
+      - nemotron_3_ultra_550b
+      - gemma_4_31b
+    samples_per_teacher: 1
+    temperature: 0.1
+
+  - id: free.writing_summary
+    capability: writing.quality
+    prompt: |
+      Schreibe einen einzigen deutschen Satz, der die Wichtigkeit verifizierter
+      Trainingsdaten hervorhebt.
+    verifier:
+      type: contains_all
+      values:
+        - "Trainingsdaten"
+    teacher_aliases:
+      - ernie_5_5_flash
+      - particle_1
+      - dots_3_note
+      - nemotron_3_5_lightning
+    samples_per_teacher: 1
+    temperature: 0.1
+
+  - id: free.instruction_json
+    capability: instruction.structured_output
+    prompt: |
+      Gib ausschliesslich JSON aus, kein Markdown, mit genau diesen Feldern und
+      Werten: name mit dem Wert AION, prioritaet mit dem Wert 1.
+    verifier:
+      type: json_equals
+      expected:
+        name: AION
+        prioritaet: 1
+    teacher_aliases:
+      - ernie_5_5_flash
+      - particle_1
+      - flint_v1_0
+      - nemotron_3_ultra_550b
+    samples_per_teacher: 1
+    temperature: 0.1

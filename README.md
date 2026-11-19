@@ -131,6 +131,32 @@ kostenlosen `:free`-Modellen, ohne die Ziel-Lehrer zu verändern. Die
 freigegebenen Daten bleiben dabei deren Modellen geschuldet, nicht denen der
 Ziel-Lehrer.
 
+## Kostenlose Mechanik-Tests
+
+Die Ziel-Lehrer in `configs/teachers.yaml` sind im Katalog verifiziert, brauchen aber
+Kontoguthaben. Für einen Durchlauf der Kette ohne Guthaben gibt es eine zweite
+Konfiguration:
+
+```bash
+aion-u1-generate-candidates \
+  --teachers configs/teachers.free.yaml \
+  --tasks training/configs/tasks/pilot_free.yaml \
+  --output data/generated/free_mechanics.jsonl \
+  --report reports/free-mechanics.json
+
+aion-u1-rank-candidates \
+  --tasks training/configs/tasks/pilot_free.yaml \
+  --input data/generated/free_mechanics.jsonl \
+  --output data/generated/free_mechanics_scored.jsonl \
+  --report reports/free-mechanics-ranked.json
+```
+
+`--tasks` ist auch beim Ranken nötig, sonst kennt er die freien Task-IDs nicht.
+Die freien Modelle ersetzen die Ziel-Lehrer nicht: sie validieren die Mechanik
+(Generieren → Verifizieren → Ranking → Freigeben). Jeder freie Eintrag trägt die
+Lehrer-Aliase, die die Task-Bank referenziert; `tests/test_free_teacher_config.py`
+prüft, dass diese zusammenpassen.
+
 ## Scoring
 
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,

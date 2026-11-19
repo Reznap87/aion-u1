@@ -1,0 +1,120 @@
+teachers:
+  # Kostenlose OpenRouter-Modelle als Mechanik-Test der Generierungskette.
+  # Ersetzen die Ziel-Lehrer nicht: sie dienen dem Durchlauf der Kette
+  # (Generieren -> Verifizieren -> Ranking -> Freigabe) ohne Kontoguthaben.
+  - alias: ling_3_2_flash
+    display_name: Ling 3.2 Flash (free)
+    provider: openrouter
+    candidate_model_ids:
+      - inclusionai/ling-3.2-flash:free
+      - inclusionai/ling-3.2-flash
+    model_id_env: LING_3_2_FLASH_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: ernie_5_5_flash
+    display_name: Ernie 5.5 Flash (free)
+    provider: openrouter
+    candidate_model_ids:
+      - baidu/ernie-5.5-flash-preview:free
+      - baidu/ernie-5.5-flash-preview
+    model_id_env: ERNIE_5_5_FLASH_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: lfm_3_1_7b
+    display_name: LFM 3 1.7B (free)
+    provider: openrouter
+    candidate_model_ids:
+      - liquid/lfm-3-1.7b:free
+      - liquid/lfm-3-1.7b
+    model_id_env: LFM_3_1_7B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: particle_1
+    display_name: Particle 1 (free)
+    provider: openrouter
+    candidate_model_ids:
+      - particle-ai/particle-1:free
+      - particle-ai/particle-1
+    model_id_env: PARTICLE_1_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: flint_v1_0
+    display_name: Flint v1.0 (free)
+    provider: openrouter
+    candidate_model_ids:
+      - recursive/flint-v1.0:free
+      - recursive/flint-v1.0
+    model_id_env: FLINT_V1_0_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: nemotron_3_5_super_vl
+    display_name: Nemotron 3.5 Super VL (free)
+    provider: openrouter
+    candidate_model_ids:
+      - nvidia/nemotron-3.5-super-vl:free
+      - nvidia/nemotron-3.5-super-vl
+    model_id_env: NEMOTRON_3_5_SUPER_VL_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: dots_3_note
+    display_name: Dots 3 Note (free)
+    provider: openrouter
+    candidate_model_ids:
+      - dots-studio/dots-3-note-preview:free
+      - dots-studio/dots-3-note-preview
+    model_id_env: DOTS_3_NOTE_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: nemotron_3_5_lightning
+    display_name: Nemotron 3.5 Lightning (free)
+    provider: openrouter
+    candidate_model_ids:
+      - nvidia/nemotron-3.5-lightning:free
+      - nvidia/nemotron-3.5-lightning
+    model_id_env: NEMOTRON_3_5_LIGHTNING_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: north_mini_code
+    display_name: North Mini Code (free)
+    provider: openrouter
+    candidate_model_ids:
+      - cohere/north-mini-code:free
+      - cohere/north-mini-code
+    model_id_env: NORTH_MINI_CODE_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: nemotron_3_ultra_550b
+    display_name: Nemotron 3 Ultra 550B (free)
+    provider: openrouter
+    candidate_model_ids:
+      - nvidia/nemotron-3-ultra-550b-a55b:free
+      - nvidia/nemotron-3-ultra-550b-a55b
+    model_id_env: NEMOTRON_3_ULTRA_550B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: nemotron_3_nano_omni
+    display_name: Nemotron 3 Nano Omni 30B (free)
+    provider: openrouter
+    candidate_model_ids:
+      - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+    model_id_env: NEMOTRON_3_NANO_OMNI_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: gemma_4_26b
+    display_name: Gemma 4 26B (free)
+    provider: openrouter
+    candidate_model_ids:
+      - google/gemma-4-26b-a4b-it:free
+      - google/gemma-4-26b-a4b-it
+    model_id_env: GEMMA_4_26B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: gemma_4_31b
+    display_name: Gemma 4 31B (free)
+    provider: openrouter
+    candidate_model_ids:
+      - google/gemma-4-31b-it:free
+      - google/gemma-4-31b-it
+    model_id_env: GEMMA_4_31B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
