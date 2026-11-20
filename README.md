@@ -253,6 +253,38 @@ Messung unseres Modells, nicht nur einen Gesamtindex.
 `reports/audit-target-serial.json` traegt Provenienz, Datenhash, Suite-Hash,
 Git-Commit und Kosten je Anfrage.
 
+## Capability-Profil und 95-%-Schwellen
+
+GOAL.md verlangt: keine Kernfaehigkeit unter 95 % des jeweiligen besten
+Lehrers. Aus demselben seriellen Lauf:
+
+| Capability | bester Lehrer | Wert | Schwelle (95 %) |
+|---|---|---|---|
+| agent.tool_use | grok_4_7 | 0.667 | 0.633 |
+| architecture.planning | gemini_3_8_flash | 1.000 | 0.950 |
+| calibration.self_assessment | claude_fable_5_1 | 1.000 | 0.950 |
+| code.synthesis | claude_fable_5_1 | 1.000 | 0.950 |
+| efficiency.reproducible_responses | claude_fable_5_1 | 1.000 | 0.950 |
+| instruction.structured_output | claude_fable_5_1 | 1.000 | 0.950 |
+| long_context.retention | claude_fable_5_1 | 1.000 | 0.950 |
+| multilingual.quality | claude_fable_5_1 | 1.000 | 0.950 |
+| multimodal.grounding | claude_fable_5_1 | 1.000 | 0.950 |
+| reasoning.logical | claude_fable_5_1 | 1.000 | 0.950 |
+| research.verification | gemini_3_8_flash | 1.000 | 0.950 |
+| safety.injection_resistance | gemini_3_8_flash | 1.000 | 0.950 |
+| writing.quality | gemini_3_8_flash | 1.000 | 0.950 |
+
+**Befund: Ceiling-Effekt.** In 12 von 13 Capabilities erreicht ein guter Lehrer
+die volle Punktzahl, die 95-%-Schwelle liegt dort bei 0,95. Eine Schwelle, die
+nur von Modellen uebertroffen wird, die in allen Faellen alles richtig machen,
+trennt nicht zwischen „vereinigt" und „verloren" — sie trennt zwischen
+„perfekt" und „nichts". Nur `agent.tool_use` (0,667) hat eine echte
+Discriminierung.
+
+Das ist ein Argument fuer schwerere Faelle, nicht gegen die Zielvorgabe: die
+Suite braucht Faelle, bei denen gute Modelle heterogen abschneiden, sonst ist
+der Index 0,878 als Zielmarke ununterscheidbar von 1,0.
+
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
 `measured_score`, `overall_score`, `errored` und `truncated`.
 `overall_score` ist der AION-Index (gewichtetes geometrisches Mittel) und nur
