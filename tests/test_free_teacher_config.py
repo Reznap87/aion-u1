@@ -46,6 +46,24 @@ def test_freie_konfiguration_tragt_die_provider_und_schluessel() -> None:
         assert eintrag["candidate_model_ids"], f"{eintrag['alias']}: keine Modell-ID"
 
 
+def test_freie_bank_deckt_alles_ausser_multimodal_ab() -> None:
+    """Die freien Textmodelle koennen keine Bilder; genau eine Capability
+    bleibt deshalb offen — und nur diese."""
+
+    from aion_u1.capabilities import CapabilityRegistry
+
+    registry = CapabilityRegistry.load(_root() / "configs" / "capabilities.yaml")
+    bank = yaml.safe_load(
+        (_root() / "training" / "configs" / "tasks" / "pilot_free.yaml")
+        .read_text(encoding="utf-8")
+    )
+    abgedeckt = {task["capability"] for task in bank["tasks"]}
+    offen = {spec.id for spec in registry.list()} - abgedeckt
+    assert offen == {"multimodal.grounding"}, (
+        f"Unerwartete Luecke in der freien Bank: {sorted(offen)}"
+    )
+
+
 def test_freie_task_bank_ist_disjunkt_zur_ziel_task_bank() -> None:
     """Die freie Bank darf die Ziel-Tasks nicht umbenennen — sonst entsteht
     Verwechslung, welche Daten aus welcher Quelle stammen."""
