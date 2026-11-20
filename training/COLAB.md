@@ -73,7 +73,26 @@ Die freigegebenen Trainingssaetze stammen aus `configs/teachers.open.yaml`
 (Apache-2.0, MIT, NVIDIA Open Model License); der Befund steht in
 `reports/licence-review.md`.
 
-## 6. Artefakte sichern
+## 6. Ergebnis messen
+
+```python
+!aion-u1-evaluate-model \
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter artifacts/sft/pilot_open/final_model \
+  --suite evaluations/capability_suite/benchmark_hard_v1.yaml \
+  --device cuda \
+  --output reports/eval-pilot.json
+```
+
+Dasselbe laeuft lokal ohne GPU (nur langsam) und ohne Adapter gegen das
+Basismodell als Baseline. Der Report traegt denselben AION-Index und dieselbe
+Aggregation wie die Lehrer-Messung — dafuer ist der Wert vergleichbar.
+
+Auf CPU dauert ein Fall mehrere Minuten; `--limit 3` gibt einen Schnelltest.
+Multimodale Faelle werden lokal noch nicht ausgefuehrt (`latency_ms 0`,
+`error` gesetzt) — auf GPU mit einem sehenden Modell laufen sie.
+
+## 7. Artefakte sichern
 
 ```python
 from google.colab import files

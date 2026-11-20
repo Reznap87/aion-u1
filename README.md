@@ -156,6 +156,21 @@ Trainings-Tasks.
 pytest -q
 ```
 
+## Evaluierung des trainierten Modells
+
+`aion-u1-evaluate-model --base-model <id> --adapter <pfad> --suite <suite>`
+lädt Basismodell und LoRA-Adapter, wendet dieselbe Suite und Aggregation an
+und schreibt `reports/eval-*.json`. Ohne `--adapter` entsteht die Baseline des
+Basismodells. Damit ist GOAL.mds zweite Bedingung („keine Kernfaehigkeit unter
+95 % des jeweiligen besten Lehrers") messbar.
+
+Der Befehl stand vorher im Code, war aber nicht in `[project.scripts]`
+eingetragen; jetzt ist er installiert. Ein Fehler im multimodalen Pfad wurde
+gefixt (`CaseResult` braucht `latency_ms`).
+
+Lokaler Schnelltest mit dem Rauch-Adapter (3 Faecke): `gemessen 1.0` bei
+Coverage 0,14 — der Pfad läuft; ein echtes Ergebnis liegt erst mit der GPU.
+
 ## Wichtige Grenze
 
 Die Teacher-IDs in `configs/teachers.yaml` sind Kandidaten. Sie gelten erst
