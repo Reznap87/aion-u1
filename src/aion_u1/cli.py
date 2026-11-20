@@ -188,7 +188,13 @@ def command_verify_teachers(args: argparse.Namespace) -> int:
 
 def command_audit(args: argparse.Namespace) -> int:
     root = repository_root()
-    teacher_path = root / "configs" / "teachers.yaml"
+    teacher_path = (
+        Path(args.teachers)
+        if args.teachers
+        else (root / "configs" / "teachers.yaml")
+    )
+    if not teacher_path.is_absolute():
+        teacher_path = root / teacher_path
     suite_path = Path(args.suite)
 
     if not suite_path.is_absolute():
@@ -383,6 +389,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--concurrency",
         type=int,
         default=4,
+    )
+    audit.add_argument(
+        "--teachers",
+        default=None,
+        help=(
+            "Abweichende Teacher-Konfiguration, z. B. configs/teachers.free.yaml; "
+            "ohne sie gelten die Ziel-Lehrer aus configs/teachers.yaml."
+        ),
     )
     audit.add_argument(
         "--max-tokens",
