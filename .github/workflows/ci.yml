@@ -76,19 +76,14 @@ jobs:
       - name: Install project
         run: pip install -e "."
 
-      - name: Ziel-Lehrer verifizieren
+      - name: Teacher-Konfigurationen verifizieren
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'katalog-only' }}
-        run: >
-          aion-u1 verify-teachers
-          --teachers configs/teachers.yaml
-          --output reports/teachers.json
-
-      - name: Freie Teacher verifizieren
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'katalog-only' }}
-        run: >
-          aion-u1 verify-teachers
-          --teachers configs/teachers.free.yaml
-          --output reports/teachers.free.json
+        run: |
+          for config in configs/teachers*.yaml; do
+            echo "== $config"
+            aion-u1 verify-teachers \
+              --teachers "$config" \
+              --output "reports/$(basename "$config" .yaml).json"
+          done
 
