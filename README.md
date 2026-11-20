@@ -99,17 +99,17 @@ Die Konsequenz ist eine zweite Lehrerliste: `configs/teachers.open.yaml`
 kommerzielle Nutzung, Derivate und Ausgaben zulassen.
 
 Damit liegt die erste freigebbare Runde vor: 112 Antworten → 77 eindeutige
-Fälle → 30 verifiziert → `data/verified/pilot_open_sft.jsonl` mit
-`training_approved: true`, dokumentierter Lizenz, 0 Secrets und 0 PII
+Fälle → 30 verifiziert, mit dokumentierter Lizenz, 0 Secrets und 0 PII
 (`review/approved_ids.txt`). Die Cloud-Daten der ersten Runden bleiben
 Mechanik-Nachweise ohne Freigabe.
 
 Eine dritte Runde (`pilot_open_v2.yaml`, 19 neue Aufgaben) lieferte 152
-Antworten und 37 weitere verifizierte Kandidaten. Zusammen ergibt das
-`data/verified/pilot_open_all.jsonl` mit 67 freigegebenen Saetzen; die
-kanonische Auswahl (eine Antwort pro Aufgabengruppe, leakfrei) ergibt
-**19 Trainings- und 3 Evaluationssaetze** — die kleinen Zahlen sind der
-wahre Engpass, nicht die Kette.
+Antworten und 37 weitere verifizierte Kandidaten, eine vierte
+(`pilot_open_v3.yaml`, 30 Aufgaben) 78 weitere. Zusammen stehen in
+`data/verified/pilot_open_all.jsonl` **145 freigegebene Saetze**; der
+kanonische, leakfreie Split liegt als **39 Trainings- und 7
+Evaluationssaetze** vor (`pilot_open_train.jsonl`, `pilot_open_eval.jsonl`).
+Die kleinen Zahlen sind der wahre Engpass, nicht die Kette.
 
 ### Secrets und personenbezogene Daten
 
