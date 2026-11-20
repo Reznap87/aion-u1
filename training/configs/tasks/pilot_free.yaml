@@ -30,7 +30,7 @@ tasks:
     teacher_aliases:
       - ernie_5_5_flash
       - particle_1
-      - north_mini_code
+      - nemotron_3_nano_omni
       - nemotron_3_5_lightning
     samples_per_teacher: 1
     temperature: 0.1
@@ -145,7 +145,7 @@ tasks:
     teacher_aliases:
       - ernie_5_5_flash
       - particle_1
-      - north_mini_code
+      - nemotron_3_5_super_vl
       - nemotron_3_ultra_550b
     samples_per_teacher: 1
     temperature: 0.1
@@ -219,7 +219,7 @@ tasks:
     teacher_aliases:
       - ernie_5_5_flash
       - particle_1
-      - north_mini_code
+      - ling_3_2_flash
       - nemotron_3_5_lightning
     samples_per_teacher: 1
     temperature: 0.1

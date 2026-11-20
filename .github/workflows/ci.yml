@@ -42,3 +42,40 @@ jobs:
       - name: Validate SFT configuration
         run: |
           python -c "from pathlib import Path; from aion_u1.training.config import load_sft_config; load_sft_config(Path('training/configs/sft_lora.yaml'))"
+
+  catalog:
+    # Teacher-IDs live gegen den Provider-Katalog pruefen. Der Katalog ist
+    # oeffentlich; ein Platzhalter-Key genuegt, weil nur /api/v1/models
+    # abgefragt wird. Ein falscher Eintrag muss den Lauf kippen — so wie
+    # `cohere/north-mini-code`, das im Katalog nie existierte.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: pip install -e "."
+
+      - name: Ziel-Lehrer verifizieren
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'katalog-only' }}
+        run: >
+          aion-u1 verify-teachers
+          --teachers configs/teachers.yaml
+          --output reports/teachers.json
+
+      - name: Freie Teacher verifizieren
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || 'katalog-only' }}
+        run: >
+          aion-u1 verify-teachers
+          --teachers configs/teachers.free.yaml
+          --output reports/teachers.free.json
+

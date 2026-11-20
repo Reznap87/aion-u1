@@ -77,3 +77,28 @@ def test_git_commit_leere_head_datei(tmp_path):
     (root / ".git" / "HEAD").write_text("", encoding="utf-8")
 
     assert _git_commit(root) is None
+
+
+def test_git_commit_worktree_refs_liegen_im_common_dir(tmp_path):
+    """In einem Worktree stehen refs/ und packed-refs im Common-Dir."""
+
+    main_git = tmp_path / "main" / ".git"
+    (main_git / "refs" / "heads").mkdir(parents=True)
+    (main_git / "refs" / "heads" / "main").write_text(
+        SHA + "\n", encoding="utf-8"
+    )
+
+    wt_git = main_git / "worktrees" / "wt"
+    wt_git.mkdir(parents=True)
+    (wt_git / "HEAD").write_text(
+        "ref: refs/heads/main\n", encoding="utf-8"
+    )
+    (wt_git / "commondir").write_text("../..", encoding="utf-8")
+
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    (worktree / ".git").write_text(
+        f"gitdir: {wt_git}\n", encoding="utf-8"
+    )
+
+    assert _git_commit(worktree) == SHA

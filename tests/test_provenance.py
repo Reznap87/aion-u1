@@ -65,3 +65,29 @@ def test_report_ohne_provenance_weiterhin_gueltig() -> None:
     )
 
     assert report.provenance is None
+
+
+def test_git_commit_worktree_nutzt_den_common_dir(tmp_path):
+    """Refs eines Worktrees liegen im Common-Dir des Haupt-Repos."""
+
+    sha = "b" * 40
+    main_git = tmp_path / "main" / ".git"
+    (main_git / "refs" / "heads").mkdir(parents=True)
+    (main_git / "refs" / "heads" / "main").write_text(
+        sha + "\n", encoding="utf-8"
+    )
+
+    wt_git = main_git / "worktrees" / "wt"
+    wt_git.mkdir(parents=True)
+    (wt_git / "HEAD").write_text(
+        "ref: refs/heads/main\n", encoding="utf-8"
+    )
+    (wt_git / "commondir").write_text("../..", encoding="utf-8")
+
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    (worktree / ".git").write_text(
+        f"gitdir: {wt_git}\n", encoding="utf-8"
+    )
+
+    assert git_commit(worktree) == sha
