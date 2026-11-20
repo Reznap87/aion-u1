@@ -88,6 +88,45 @@ Ohne eigene GPU: [COLAB.md](COLAB.md) beschreibt den Lauf in Google Colabs
 kostenloser T4 (16 GB) — inklusive `fp16: true` für Turing und der
 Lizenzfreigabe des Basismodells.
 
+## Adapter nachpruefen
+
+`train-sft` ist erst dann fertig, wenn der trainierte Adapter auch
+**lädt und antwortet**. Das Manifest sagt nur, dass die Ablage klappte:
+
+```python
+import torch
+from peft import PeftModel
+from transformers import (
+    AutoModelForCausalLM, AutoTokenizer,
+)
+
+base = "<base_model wie in der Config>"
+adapter = "artifacts/sft/pilot/final_model"
+
+tok = AutoTokenizer.from_pretrained(base)
+model = AutoModelForCausalLM.from_pretrained(
+    base, torch_dtype=torch.bfloat16
+)
+model = PeftModel.from_pretrained(model, adapter)
+
+msgs = [{"role": "user", "content": "Nenne drei Primzahlen."}]
+ids = tok.apply_chat_template(
+    msgs, tokenize=True, add_generation_prompt=True,
+    return_tensors="pt",
+)
+out = model.generate(
+    ids, max_new_tokens=48, do_sample=False,
+    pad_token_id=tok.pad_token_id,
+)
+print(model.active_adapter)          # darf nicht None sein
+print(tok.decode(out[0][ids.shape[1]:], skip_special_tokens=True))
+```
+
+`active_adapter` muss den Adapter-Namen liefern, nicht `None` — sonst ist
+das Modell untrainiert geladen worden. Die Antwort selbst ist bei einem
+Pilotdatensatz ohne Aussagekraft; es geht um den Nachweis, dass die
+Gewichte im Modell ankommen.
+
 ## Smoke-Pfad
 
 Der Smoke-Export liefert nur `pending_review`-Zeilen nach
