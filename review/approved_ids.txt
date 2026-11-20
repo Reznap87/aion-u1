@@ -1,0 +1,34 @@
+# Freigegebene Kandidaten-IDs (2026-11-20).
+# Quelle: data/generated/pilot_open_scored.jsonl, Status verified.
+# Lizenz je Lehrer: configs/teachers.open.yaml; Befund: reports/licence-review.md.
+
+aion-candidate-26a80fe5e97334ff62e7fb59
+aion-candidate-0196833102da87ddac83c37f
+aion-candidate-94f6350374f07b75c47ce768
+aion-candidate-a48b5b4077c60bb053443cc2
+aion-candidate-2f6f5b1f47691b1da45c8072
+aion-candidate-748bfb0752b709c049b7ce18
+aion-candidate-640bb9ce2cca0aaa9659a493
+aion-candidate-628d6fd0e5949f3529d98d8f
+aion-candidate-a67eb8b4a69821aaf28427e3
+aion-candidate-e101a06c44d5224f22c4c01b
+aion-candidate-806d97d333e78eeeb2e3e25f
+aion-candidate-b522ebb1841d3143604d348e
+aion-candidate-f886803a0d7f63a8a6a8eb54
+aion-candidate-3c521da228797e86324a6c50
+aion-candidate-806c3cc5d1b9db28c907dd0a
+aion-candidate-4b1e22229016823284494778
+aion-candidate-396fe7634aa5ebdd8697b30d
+aion-candidate-d8b2f0ea937d8849b93707aa
+aion-candidate-9ad3ccdf8742d354c152f677
+aion-candidate-ca8e0b2ac79374f0e05706cc
+aion-candidate-899caefd7f89e3df5d80b9d8
+aion-candidate-47823f83e0271f02ea1a6b2e
+aion-candidate-892398def91877603195e05c
+aion-candidate-011360db1ab8d4eacbfd98d6
+aion-candidate-4f95583807952c2d2018e929
+aion-candidate-e0b24bbbcf24f1acb9812281
+aion-candidate-99da76d5f8c53bafef72d184
+aion-candidate-8ad43c83cc114839337e1158
+aion-candidate-5eeeda437b47b11ad25241c6
+aion-candidate-c167683d99ae9f8837119d4c

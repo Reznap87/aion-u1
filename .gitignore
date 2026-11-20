@@ -9,7 +9,10 @@ dist/
 build/
 reports/*.json
 data/generated/
-data/verified/
+# Rohdaten bleiben lokal; freigegebene Saetze der Open-Weight-Piloten
+# gehoeren versioniert (Provenienz, Reproduzierbarkeit).
+data/verified/*
+!data/verified/pilot_open_*.jsonl
 
 # AION-U1 Training Outputs
 artifacts/

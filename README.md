@@ -89,6 +89,28 @@ Beispiels. Der Freigabebefehl exportiert ausschließlich freigegebene Zeilen.
 Die Lizenz und die Betreiberangabe müssen inhaltlich geprüft werden; der
 Befehl selbst führt keine Rechtsprüfung durch.
 
+**Aktueller Stand (2026-11-20): für die Cloud-Lehrer blockiert, für Open-Weight
+freigegeben.** Die Prüfung der Lehrer-Nutzungsbedingungen in
+`reports/licence-review.md` ergibt, dass Anthropic, OpenAI und Google die
+Nutzung ihrer API-Ausgaben zum Trainieren konkurrierender Modelle ausdrücklich
+verbieten; für Kimi, MiniMax und xAI ist die Auslegung für API-Ausgaben unklar.
+Die Konsequenz ist eine zweite Lehrerliste: `configs/teachers.open.yaml`
+(Qwen3, Gemma 4, Granite, Phi 4, Nemotron, DeepSeek R1) mit Lizenzen, die
+kommerzielle Nutzung, Derivate und Ausgaben zulassen.
+
+Damit liegt die erste freigebbare Runde vor: 112 Antworten → 77 eindeutige
+Fälle → 30 verifiziert → `data/verified/pilot_open_sft.jsonl` mit
+`training_approved: true`, dokumentierter Lizenz, 0 Secrets und 0 PII
+(`review/approved_ids.txt`). Die Cloud-Daten der ersten Runden bleiben
+Mechanik-Nachweise ohne Freigabe.
+
+Eine dritte Runde (`pilot_open_v2.yaml`, 19 neue Aufgaben) lieferte 152
+Antworten und 37 weitere verifizierte Kandidaten. Zusammen ergibt das
+`data/verified/pilot_open_all.jsonl` mit 67 freigegebenen Saetzen; die
+kanonische Auswahl (eine Antwort pro Aufgabengruppe, leakfrei) ergibt
+**19 Trainings- und 3 Evaluationssaetze** — die kleinen Zahlen sind der
+wahre Engpass, nicht die Kette.
+
 ### Secrets und personenbezogene Daten
 
 AGENTS.md verbietet Secrets und personenbezogene Daten in Datensätzen.
@@ -144,6 +166,15 @@ nach erfolgreicher Katalogverifikation als verfügbar.
 Die Unified-SFT-Pipeline (Generieren, Ranken, Freigeben, Splitten, LoRA-SFT)
 ist in [training/README.md](training/README.md) beschrieben.
 
+Erster Durchlauf mit freigebbaren Daten (CPU-Rauchtest, 2026-11-20):
+`training/configs/sft_lora_smoke.yaml` auf `artifacts/sft/rauchtest/` —
+SmolLM2-135M als Rauchmodell, LoRA-Adapter (3,6 MB), train_loss 1,86,
+eval_loss 1,61, `run_manifest.json` mit Paketversionen, Seed, Git-Commit und
+`status: completed`. Es ist ein Nachweis, dass die Schleife bis zum Checkpoint
+läuft — **kein** Qualitätsergebnis und keine Fähigkeitsmessung. Das Zielmodell
+bleibt `Qwen/Qwen2.5-1.5B-Instruct` (`sft_lora_open.yaml`), die Datenmenge ist
+mit 19 Trainingssätzen noch zu klein für ein aussagekräftiges Ergebnis.
+
 ## Multi-Teacher Data Factory
 
 Der Pilot umfasst 16 Aufgaben, Live-OpenRouter-Kandidatengenerierung,
@@ -157,6 +188,10 @@ Konfiguration angeben — praktisch für einen Mechanik-Test der Kette mit
 kostenlosen `:free`-Modellen, ohne die Ziel-Lehrer zu verändern. Die
 freigegebenen Daten bleiben dabei deren Modellen geschuldet, nicht denen der
 Ziel-Lehrer.
+
+`--max-tokens <zahl>` begrenzt die Antwortlänge über alle Tasks hinweg. Das
+schützt ein kleines Konto: ein einzelner 900-Token-Output eines teuren Lehrers
+kostet sonst mehr als eine ganze Runde.
 
 ## Kostenlose Mechanik-Tests
 

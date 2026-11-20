@@ -1,0 +1,94 @@
+# Open-Weight-Lehrer fuer AION-U1.
+#
+# Diese Konfiguration ersetzt die Cloud-Ziel-Lehrer dort, wo deren
+# Nutzungsbedingungen das Training auf API-Ausgaben verbieten
+# (siehe reports/licence-review.md). Jeder Eintrag traegt eine Lizenz, die
+# kommerzielle Nutzung, Derivate und Ausgaben zulassen:
+#
+#   qwen/*            Apache 2.0   (Qwen3-Repo: "All our open-weight models are
+#                                    licensed under Apache 2.0", inkl. Finetuning)
+#   google/gemma-4    Apache 2.0   (Gemma 4 ist von den Gemma Terms zu Apache
+#                                    2.0 gewechselt)
+#   ibm-granite/*     Apache 2.0
+#   microsoft/phi-4   MIT
+#   nvidia/nemotron   NVIDIA Open Model License: "NVIDIA does not claim
+#                     ownership to any outputs generated using the Works",
+#                     kommerziell nutzbar, Derivate frei
+#   deepseek-r1       MIT (Gewichte, ab R1)
+#
+# Lizenztexte: QwenLM/Qwen3 (GitHub), huggingface.co/google/gemma-4-31b-it,
+# ibm-granite/granite-4.0-language-models, huggingface.co/microsoft/phi-4,
+# nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license,
+# huggingface.co/deepseek-ai/DeepSeek-R1.
+teachers:
+  - alias: qwen3_coder_next
+    display_name: Qwen3 Coder Next
+    provider: openrouter
+    license: Apache-2.0
+    candidate_model_ids:
+      - qwen/qwen3-coder-next
+    model_id_env: QWEN3_CODER_NEXT_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: qwen3_235b
+    display_name: Qwen3 235B A22B
+    provider: openrouter
+    license: Apache-2.0
+    candidate_model_ids:
+      - qwen/qwen3-235b-a22b-2507
+    model_id_env: QWEN3_235B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: gemma_4_31b
+    display_name: Gemma 4 31B
+    provider: openrouter
+    license: Apache-2.0
+    candidate_model_ids:
+      - google/gemma-4-31b-it
+    model_id_env: GEMMA_4_31B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: granite_4_2_8b
+    display_name: Granite 4.2 8B
+    provider: openrouter
+    license: Apache-2.0
+    candidate_model_ids:
+      - ibm-granite/granite-4.2-8b
+    model_id_env: GRANITE_4_2_8B_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: phi_4
+    display_name: Phi 4
+    provider: openrouter
+    license: MIT
+    candidate_model_ids:
+      - microsoft/phi-4
+    model_id_env: PHI_4_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: nemotron_3_5_lightning
+    display_name: Nemotron 3.5 Lightning
+    provider: openrouter
+    license: nvidia-open-model-license
+    candidate_model_ids:
+      - nvidia/nemotron-3.5-lightning
+    model_id_env: NEMOTRON_3_5_LIGHTNING_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: nemotron_3_ultra
+    display_name: Nemotron 3 Ultra 550B
+    provider: openrouter
+    license: nvidia-open-model-license
+    candidate_model_ids:
+      - nvidia/nemotron-3-ultra-550b-a55b
+    model_id_env: NEMOTRON_3_ULTRA_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: deepseek_r1
+    display_name: DeepSeek R1
+    provider: openrouter
+    license: MIT
+    candidate_model_ids:
+      - deepseek/deepseek-r1-0528
+    model_id_env: DEEPSEEK_R1_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY

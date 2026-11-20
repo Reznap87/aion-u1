@@ -1,0 +1,56 @@
+run:
+  name: aion-u1-sft-rauchtest
+  output_dir: artifacts/sft/rauchtest
+  seed: 20251027
+  resume_from_checkpoint: null
+  overwrite_output_dir: false
+
+data:
+  train_path: data/verified/pilot_open_train.jsonl
+  eval_path: data/verified/pilot_open_eval.jsonl
+  max_seq_length: 1024
+  require_training_approval: true
+
+# Rauchtest-Modell: beweist die Trainingsschleife auf CPU (Manifest, LoRA,
+# Checkpoint, Evaluierung) in Minuten statt Stunden. Das Zielmodell bleibt
+# Qwen/Qwen2.5-1.5B-Instruct (sft_lora.yaml) und laeuft auf GPU.
+model:
+  base_model: HuggingFaceTB/SmolLM2-135M-Instruct
+  revision: main
+  trust_remote_code: false
+  dtype: auto
+  attn_implementation: eager
+  license_acknowledged: true
+
+peft:
+  enabled: true
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+  merge_and_save: false
+
+training:
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0002
+  weight_decay: 0.0
+  warmup_ratio: 0.03
+  lr_scheduler_type: cosine
+  max_grad_norm: 1.0
+  optim: adamw_torch
+  logging_steps: 2
+  save_strategy: epoch
+  save_total_limit: 1
+  load_best_model_at_end: true
+  gradient_checkpointing: true
+  bf16: false
+  fp16: false
+  tf32: false
+  full_determinism: false
