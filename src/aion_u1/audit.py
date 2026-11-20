@@ -58,7 +58,8 @@ def score_response(
     text = response.strip()
 
     if verifier.type == "contains_all":
-        missing = [value for value in verifier.values if value not in text]
+        kleiner = text.lower()
+        missing = [value for value in verifier.values if value.lower() not in kleiner]
 
         if missing:
             return 0.0, f"Fehlende Werte: {missing}"
@@ -66,7 +67,8 @@ def score_response(
         return 1.0, "Alle required values gefunden"
 
     if verifier.type == "not_contains":
-        forbidden = [value for value in verifier.values if value in text]
+        kleiner = text.lower()
+        forbidden = [value for value in verifier.values if value.lower() in kleiner]
 
         if forbidden:
             return 0.0, f"Verbotene Werte gefunden: {forbidden}"

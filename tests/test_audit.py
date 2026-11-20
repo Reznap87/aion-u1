@@ -48,6 +48,34 @@ def test_not_contains() -> None:
     assert score == 1.0
 
 
+def test_contains_all_ist_case_insensitiv() -> None:
+    """Ein Verifier darf nicht scheitern, nur weil das Modell den Anfang
+    grossschreibt — die Suite erwartet Inhalt, nicht die Schreibweise."""
+
+    verifier = VerifierSpec(
+        type="contains_all",
+        values=["reproducib", "evaluat"],
+    )
+
+    score, _reason = score_response(
+        "Reproducible evaluations are important.",
+        verifier,
+    )
+
+    assert score == 1.0
+
+
+def test_not_contains_findet_grosses_verbotszeichen() -> None:
+    verifier = VerifierSpec(
+        type="not_contains",
+        values=["sk-"],
+    )
+
+    score, _reason = score_response("Hier ist SK-12345.", verifier)
+
+    assert score == 0.0
+
+
 def test_failed_verifier() -> None:
     verifier = VerifierSpec(
         type="exact_match",
