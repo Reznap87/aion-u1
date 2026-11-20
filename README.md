@@ -104,6 +104,13 @@ Fälle → 30 verifiziert → `data/verified/pilot_open_sft.jsonl` mit
 (`review/approved_ids.txt`). Die Cloud-Daten der ersten Runden bleiben
 Mechanik-Nachweise ohne Freigabe.
 
+Eine dritte Runde (`pilot_open_v2.yaml`, 19 neue Aufgaben) lieferte 152
+Antworten und 37 weitere verifizierte Kandidaten. Zusammen ergibt das
+`data/verified/pilot_open_all.jsonl` mit 67 freigegebenen Saetzen; die
+kanonische Auswahl (eine Antwort pro Aufgabengruppe, leakfrei) ergibt
+**19 Trainings- und 3 Evaluationssaetze** — die kleinen Zahlen sind der
+wahre Engpass, nicht die Kette.
+
 ### Secrets und personenbezogene Daten
 
 AGENTS.md verbietet Secrets und personenbezogene Daten in Datensätzen.
