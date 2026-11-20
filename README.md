@@ -89,6 +89,14 @@ Beispiels. Der Freigabebefehl exportiert ausschließlich freigegebene Zeilen.
 Die Lizenz und die Betreiberangabe müssen inhaltlich geprüft werden; der
 Befehl selbst führt keine Rechtsprüfung durch.
 
+**Aktueller Stand (2026-11-20): die Freigabe ist blockiert.** Die Prüfung der
+Lehrer-Nutzungsbedingungen in `reports/licence-review.md` ergibt, dass
+Anthropic, OpenAI und Google die Nutzung ihrer API-Ausgaben zum Trainieren
+konkurrierender Modelle ausdrücklich verbieten; für Kimi, MiniMax und xAI ist
+die Auslegung für API-Ausgaben unklar. Deshalb bleibt
+`review/approved_ids.txt` leer und `training_approved` steht auf `false` — die
+generierten Kandidaten sind Mechanik-Nachweise, keine Produktionsdaten.
+
 ### Secrets und personenbezogene Daten
 
 AGENTS.md verbietet Secrets und personenbezogene Daten in Datensätzen.

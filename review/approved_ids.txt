@@ -1,0 +1,7 @@
+# Freizugebende Kandidaten-IDs — bewusst leer.
+
+Stand 2026-11-20: Die Lizenzpruefung (reports/licence-review.md) erlaubt keine
+Freigabe. Anthropic, OpenAI und Google verbieten das Training auf ihren
+API-Ausgaben; fuer Kimi, MiniMax und xAI ist die Auslegung fuer API-Ausgaben
+unklar. Je Zeile eine ID, sobald und sofern eine Lizenz das ausdruecklich
+erlaubt — nicht vorher.
