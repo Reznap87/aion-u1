@@ -285,6 +285,32 @@ Das ist ein Argument fuer schwerere Faelle, nicht gegen die Zielvorgabe: die
 Suite braucht Faelle, bei denen gute Modelle heterogen abschneiden, sonst ist
 der Index 0,878 als Zielmarke ununterscheidbar von 1,0.
 
+## Schwere Suite (erste Messung, 2026-11-20)
+
+`benchmark_hard_v1.yaml` (26 Faelle, 2 je Capability) existiert wegen des
+Ceiling-Effekts. Serieller Lauf, 8 Lehrer:
+
+| Lehrer | Index | Coverage |
+|---|---|---|
+| grok_4_7 | 0.847 | 1.00 |
+| kimi_k2_7_code | 0.847 | 1.00 |
+| minimax_m3_1_flash | 0.847 | 1.00 |
+| gpt_6_1_sol | 0.768 | 1.00 |
+| gemini_3_8_flash | — (0.751) | 0.92 |
+| claude_fable_5_1 | 0.737 | 1.00 |
+| claude_sonnet_5_5 | 0.737 | 1.00 |
+| kimi_k3 | 0.000 | 1.00 |
+
+Die Suite trennt: 0,737 bis 0,847 statt vorher fast ueberall 1,000. Damit ist
+sie die Messbasis fuer GOAL.md, nicht `benchmark_v1`.
+
+Zwei Befunde zu kimi_k3 (Index 0,000): die Null entsteht nicht durch falsche
+Inhalte, sondern durch Format- und Abbruchprobleme — eine Antwort nannte den
+Ausdruck in Backticks (`exact_match` schlaegt dann fehl, im Prompt gefixt), eine
+andere brach mid-JSON ab. Solche Ausfaelle sind Robustheitsbefunde, keine
+Faehigkeitsurteile; sie gehoeren in die Lesart des Reports, nicht in einen
+Ruf nach besseren Faecken.
+
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
 `measured_score`, `overall_score`, `errored` und `truncated`.
 `overall_score` ist der AION-Index (gewichtetes geometrisches Mittel) und nur
