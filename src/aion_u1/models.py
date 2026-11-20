@@ -15,6 +15,9 @@ class TeacherConfig(BaseModel):
     candidate_model_ids: list[str] = Field(min_length=1)
     model_id_env: str | None = None
     api_key_env: str = "OPENROUTER_API_KEY"
+    # "unreviewed" ist die ehrliche Voreinstellung: keine Freigabe ohne
+    # dokumentierte Lizenzpruefung (AGENTS.md).
+    license: str = "unreviewed"
     base_url_env: str = "OPENROUTER_BASE_URL"
     base_url_default: str = "https://openrouter.ai/api/v1"
 

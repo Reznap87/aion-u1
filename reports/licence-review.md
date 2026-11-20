@@ -42,6 +42,30 @@ moeglich.
 - Kimi K3: <https://github.com/MoonshotAI/Kimi-K3/blob/main/LICENSE> (open
   weight, Lizenz mit Bedingungen, keine OSI-Open-Source-Lizenz).
 
+## Freigebbare Alternative: Open-Weight-Konstellation
+
+`configs/teachers.open.yaml` ersetzt die Cloud-Lehrer durch acht Open-Weight-
+Modelle, deren Lizenzen kommerzielle Nutzung, Derivate und Ausgaben zulassen:
+
+| Lehrer | Lizenz | Kernbestandteil |
+|---|---|---|
+| qwen3-coder-next | Apache 2.0 | „All our open-weight models are licensed under Apache 2.0", Finetuning ausdrücklich erwähnt (QwenLM/Qwen3) |
+| qwen3-235b-a22b-2507 | Apache 2.0 | wie oben |
+| google/gemma-4-31b-it | Apache 2.0 | Gemma 4 ist von den Gemma Terms zu Apache 2.0 gewechselt |
+| ibm-granite/granite-4.2-8b | Apache 2.0 | IBM: Granite 4.0 unter Apache 2.0 |
+| microsoft/phi-4 | MIT | Microsoft-Policy für offene Phi-Gewichte |
+| nvidia/nemotron-3.5-lightning | NVIDIA Open Model License | „NVIDIA does not claim ownership to any outputs generated using the Works", Derivate frei |
+| nvidia/nemotron-3-ultra-550b-a55b | NVIDIA Open Model License | wie oben |
+| deepseek/deepseek-r1-0528 | MIT | Gewichte ab DeepSeek-R1 MIT-lizenziert |
+
+Auswirkungen:
+- `TeacherConfig` traegt ein `license`-Feld, Default `unreviewed`; die
+  Open-Liste nennt die gepruefte Lizenz je Lehrer.
+- Der AION-Index und die Datenrunden sind mit dieser Konfiguration messbar und
+  freigebaur, ohne Anbieter-Genehmigung einzuholen.
+- Der Namenszwang von Llama (verteilte Derivate muessen „Llama" fuehren)
+  entfaellt; deshalb ist Llama bewusst nicht in der Liste.
+
 ## Konsequenz fuer die Pipeline
 
 - `training_approved` bleibt `false`; `review/approved_ids.txt` bleibt leer.
