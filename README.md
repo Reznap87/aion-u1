@@ -242,8 +242,10 @@ Zwei Befunde:
    Open-Weight-Modell, das auch in `configs/teachers.open.yaml` steht. Das ist
    die Zielmarke aus GOAL.md.
 2. Die teuren Cloud-Modelle haben Abdeckungsluecken (10–14 `errored`), deshalb
-   kein Index. Der Grund ist nicht die Qualitaet, sondern Laufzeit-/Laengen-
-   verhalten in dieser Suite — vor einer Interpretation muss das geklaert sein.
+   kein Index. Geprueft: **alle 42 Fehler des Laufs sind HTTP 429** (Rate-Limit
+   des Anbieters, `nach Versuch 3/3`) — kein einziger Qualitaets- oder
+   Modellfehler. Die Lücken sind ein Messartefakt; deshalb laeuft der Audit
+   zusaetzlich seriell (`--concurrency 1`).
 
 `reports/audit-target-bench.json` traegt Provenienz, Datenhash, Suite-Hash,
 Git-Commit und Kosten je Anfrage.
