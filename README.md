@@ -139,6 +139,15 @@ nach erfolgreicher Katalogverifikation als verfügbar.
 Die Unified-SFT-Pipeline (Generieren, Ranken, Freigeben, Splitten, LoRA-SFT)
 ist in [training/README.md](training/README.md) beschrieben.
 
+Erster Durchlauf mit freigebbaren Daten (CPU-Rauchtest, 2026-11-20):
+`training/configs/sft_lora_smoke.yaml` auf `artifacts/sft/rauchtest/` —
+SmolLM2-135M als Rauchmodell, LoRA-Adapter (3,6 MB), train_loss 1,86,
+eval_loss 1,61, `run_manifest.json` mit Paketversionen, Seed, Git-Commit und
+`status: completed`. Es ist ein Nachweis, dass die Schleife bis zum Checkpoint
+läuft — **kein** Qualitätsergebnis und keine Fähigkeitsmessung. Das Zielmodell
+bleibt `Qwen/Qwen2.5-1.5B-Instruct` (`sft_lora_open.yaml`), die Datenmenge ist
+mit 19 Trainingssätzen noch zu klein für ein aussagekräftiges Ergebnis.
+
 ## Multi-Teacher Data Factory
 
 Der Pilot umfasst 16 Aufgaben, Live-OpenRouter-Kandidatengenerierung,
