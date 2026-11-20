@@ -45,6 +45,28 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _common_dir(git_dir: Path) -> Path:
+    """Gitdir des Haupt-Repos.
+
+    In einem Worktree liegen `refs/` und `packed-refs` im Common-Dir, auf den
+    `.git/worktrees/<name>/commondir` verweist — nicht im Gitdir des Worktrees.
+    """
+
+    commondir = git_dir / "commondir"
+
+    if not commondir.is_file():
+        return git_dir
+
+    text = commondir.read_text(
+        encoding="utf-8"
+    ).strip()
+
+    if not text:
+        return git_dir
+
+    return (git_dir / text).resolve()
+
+
 def _git_commit(
     root: Path,
 ) -> str | None:
@@ -80,27 +102,29 @@ def _git_commit(
             return head or None
 
         ref = head.split(":", 1)[1].strip()
-        ref_file = git_dir / ref
-        if ref_file.is_file():
-            return (
-                ref_file.read_text(
-                    encoding="utf-8"
-                ).strip()
-                or None
-            )
 
-        # Geschlossener Branch: der Commit steht in `packed-refs`
-        # (<sha> <ref>, Kommentare und Peel-Zeilen ueberspringen).
-        packed = git_dir / "packed-refs"
-        if packed.is_file():
-            for line in packed.read_text(
-                encoding="utf-8"
-            ).splitlines():
-                if line.startswith(("#", "^")):
-                    continue
-                parts = line.split(" ", 1)
-                if len(parts) == 2 and parts[1] == ref:
-                    return parts[0].strip() or None
+        for base in (git_dir, _common_dir(git_dir)):
+            ref_file = base / ref
+            if ref_file.is_file():
+                return (
+                    ref_file.read_text(
+                        encoding="utf-8"
+                    ).strip()
+                    or None
+                )
+
+            # Geschlossener Branch: der Commit steht in `packed-refs`
+            # (<sha> <ref>, Kommentare und Peel-Zeilen ueberspringen).
+            packed = base / "packed-refs"
+            if packed.is_file():
+                for line in packed.read_text(
+                    encoding="utf-8"
+                ).splitlines():
+                    if line.startswith(("#", "^")):
+                        continue
+                    parts = line.split(" ", 1)
+                    if len(parts) == 2 and parts[1] == ref:
+                        return parts[0].strip() or None
 
         return None
 

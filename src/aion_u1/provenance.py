@@ -26,26 +26,51 @@ def sha256_file(path: Path) -> str | None:
         return None
 
 
+def _common_dir(dot_git: Path) -> Path:
+    """Gitdir des Haupt-Repos.
+
+    In einem Worktree liegen `refs/` und `packed-refs` nicht im Gitdir des
+    Worktrees, sondern im Common-Dir, auf den `.git/worktrees/<name>/commondir`
+    verweist.
+    """
+
+    commondir = dot_git / "commondir"
+
+    if not commondir.is_file():
+        return dot_git
+
+    text = commondir.read_text(
+        encoding="utf-8",
+        errors="replace",
+    ).strip()
+
+    if not text:
+        return dot_git
+
+    return (dot_git / text).resolve()
+
+
 def _read_ref(dot_git: Path, ref: str) -> str | None:
     """Löst einen Branch-Namen ueber die Ref-Dateien auf."""
 
-    ref_file = dot_git / ref
-    if ref_file.is_file():
-        return ref_file.read_text(
-            encoding="utf-8", errors="replace"
-        ).strip() or None
+    for base in (dot_git, _common_dir(dot_git)):
+        ref_file = base / ref
+        if ref_file.is_file():
+            return ref_file.read_text(
+                encoding="utf-8", errors="replace"
+            ).strip() or None
 
-    packed = dot_git / "packed-refs"
-    if packed.is_file():
-        for line in packed.read_text(
-            encoding="utf-8", errors="replace"
-        ).splitlines():
-            line = line.strip()
-            if not line or line.startswith(("#", "^")):
-                continue
-            sha, _, refname = line.partition(" ")
-            if refname == ref:
-                return sha
+        packed = base / "packed-refs"
+        if packed.is_file():
+            for line in packed.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines():
+                line = line.strip()
+                if not line or line.startswith(("#", "^")):
+                    continue
+                sha, _, refname = line.partition(" ")
+                if refname == ref:
+                    return sha
 
     return None
 

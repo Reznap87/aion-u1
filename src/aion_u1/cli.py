@@ -153,7 +153,14 @@ def command_capabilities(args: argparse.Namespace) -> int:
 
 def command_verify_teachers(args: argparse.Namespace) -> int:
     root = repository_root()
-    configs = load_teachers(root / "configs" / "teachers.yaml")
+    teacher_path = (
+        Path(args.teachers)
+        if args.teachers
+        else (root / "configs" / "teachers.yaml")
+    )
+    if not teacher_path.is_absolute():
+        teacher_path = root / teacher_path
+    configs = load_teachers(teacher_path)
 
     async def execute() -> int:
         client, resolutions = await resolve_all(configs)
@@ -179,6 +186,34 @@ def command_verify_teachers(args: argparse.Namespace) -> int:
                     indent=2,
                 )
             )
+
+            unverified = [
+                resolution
+                for resolution in resolutions
+                if resolution.status == "unverified"
+            ]
+            print(
+                f"\n{len(resolutions) - len(unverified)}/"
+                f"{len(resolutions)} Teacher verifiziert.",
+                file=sys.stderr,
+            )
+
+            if unverified:
+                for resolution in unverified:
+                    print(
+                        f"Nicht auflösbar: "
+                        f"{resolution.config.alias} "
+                        f"({', '.join(resolution.config.candidate_model_ids)})",
+                        file=sys.stderr,
+                    )
+                    if resolution.suggestions:
+                        print(
+                            "  Ähnlich im Katalog: "
+                            + ", ".join(resolution.suggestions),
+                            file=sys.stderr,
+                        )
+                return 1
+
             return 0
         finally:
             await client.close()
@@ -188,7 +223,13 @@ def command_verify_teachers(args: argparse.Namespace) -> int:
 
 def command_audit(args: argparse.Namespace) -> int:
     root = repository_root()
-    teacher_path = root / "configs" / "teachers.yaml"
+    teacher_path = (
+        Path(args.teachers)
+        if args.teachers
+        else (root / "configs" / "teachers.yaml")
+    )
+    if not teacher_path.is_absolute():
+        teacher_path = root / teacher_path
     suite_path = Path(args.suite)
 
     if not suite_path.is_absolute():
@@ -363,6 +404,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         default="reports/teachers.json",
     )
+    verify.add_argument(
+        "--teachers",
+        default=None,
+        help=(
+            "Abweichende Teacher-Konfiguration, z. B. "
+            "configs/teachers.free.yaml; ohne sie gelten die Ziel-Lehrer "
+            "aus configs/teachers.yaml."
+        ),
+    )
     verify.set_defaults(
         func=command_verify_teachers,
     )
@@ -383,6 +433,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--concurrency",
         type=int,
         default=4,
+    )
+    audit.add_argument(
+        "--teachers",
+        default=None,
+        help=(
+            "Abweichende Teacher-Konfiguration, z. B. configs/teachers.free.yaml; "
+            "ohne sie gelten die Ziel-Lehrer aus configs/teachers.yaml."
+        ),
     )
     audit.add_argument(
         "--max-tokens",

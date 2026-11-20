@@ -179,6 +179,13 @@ aion-u1-rank-candidates \
 ```
 
 `--tasks` ist auch beim Ranken nötig, sonst kennt er die freien Task-IDs nicht.
+`aion-u1 audit` kennt dieselbe Freiheit über `--teachers` — ohne den Schalter
+wäre der AION-Index nur für die Konfiguration messbar, die gerade antwortet.
+Bei den freien Modellen gilt ein Kontingent: parallele Audits laufen in HTTP 429,
+eine serielle Auswahl steht in `configs/teachers.free_smoke.yaml`.
+Die freie Bank deckt 12 der 13 Capabilities ab; `multimodal.grounding` bleibt
+offen, weil die freien Textmodelle keine Bilder transportieren — das ist eine
+echte Lücke und wird in `tests/test_free_teacher_config.py` so verankert.
 Die freien Modelle ersetzen die Ziel-Lehrer nicht: sie validieren die Mechanik
 (Generieren → Verifizieren → Ranking → Freigeben). Jeder freie Eintrag trägt die
 Lehrer-Aliase, die die Task-Bank referenziert; `tests/test_free_teacher_config.py`
