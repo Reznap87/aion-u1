@@ -236,16 +236,30 @@ async def generate_candidates(
             ]
         ] = []
 
+        bekannt = {
+            resolution.config.alias
+            for resolution in resolutions
+        }
+        unbekannte_aliase: set[str] = set()
+        tasks_ohne_lehrer: list[str] = []
+
         for task in bank.tasks:
+            task_hat_lehrer = False
+
             for alias in task.teacher_aliases:
-                resolution = resolution_by_alias.get(alias)
+                if alias not in bekannt:
+                    unbekannte_aliase.add(alias)
+                    continue
+
+                resolution = resolution_by_alias[alias]
 
                 if (
-                    resolution is None
-                    or resolution.status != "verified"
+                    resolution.status != "verified"
                     or not resolution.model_id
                 ):
                     continue
+
+                task_hat_lehrer = True
 
                 for sample_index in range(
                     task.samples_per_teacher
@@ -262,6 +276,9 @@ async def generate_candidates(
                             )
                         )
                     )
+
+            if not task_hat_lehrer:
+                tasks_ohne_lehrer.append(task.id)
 
         outcomes = (
             await asyncio.gather(*jobs)
@@ -284,7 +301,10 @@ async def generate_candidates(
             for resolution in resolutions
         ]
 
-        return rows, errors, resolution_report
+        return rows, errors, resolution_report, {
+            "unbekannte_aliase": sorted(unbekannte_aliase),
+            "tasks_ohne_lehrer": tasks_ohne_lehrer,
+        }
 
     finally:
         await client.close()
@@ -399,7 +419,12 @@ def main(
 
         configs = load_teacher_configs(root, teachers_path)
 
-        rows, errors, resolutions = asyncio.run(
+        (
+            rows,
+            errors,
+            resolutions,
+            uebersprungen,
+        ) = asyncio.run(
             generate_candidates(
                 configs,
                 bank,
@@ -418,6 +443,7 @@ def main(
             "candidates": len(rows),
             "errors": len(errors),
             "teacher_resolutions": resolutions,
+            "skipped": uebersprungen,
             "output": str(output_path),
             "error_details": errors,
         }
@@ -432,6 +458,24 @@ def main(
                 default=str,
             )
         )
+
+        if uebersprungen["unbekannte_aliase"]:
+            print(
+                "Unbekannte Lehrer-Aliase in der Task-Bank: "
+                + ", ".join(
+                    uebersprungen["unbekannte_aliase"]
+                ),
+                file=sys.stderr,
+            )
+
+        if uebersprungen["tasks_ohne_lehrer"]:
+            print(
+                "Tasks ohne verfuegbaren Lehrer: "
+                + ", ".join(
+                    uebersprungen["tasks_ohne_lehrer"]
+                ),
+                file=sys.stderr,
+            )
 
         return 0 if rows else 1
 
