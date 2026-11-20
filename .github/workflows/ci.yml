@@ -35,13 +35,26 @@ jobs:
 
       - name: Run tests
         run: pytest -q
-      - name: Validate task bank
+      - name: Validate task banks
         run: |
-          python -c "from pathlib import Path; from aion_u1.training.tasks import load_task_bank; b=load_task_bank(Path('training/configs/tasks/pilot.yaml')); assert len(b.tasks) == 16"
+          python - <<'PY'
+          from pathlib import Path
+          from aion_u1.training.tasks import load_task_bank
+          for path in sorted(Path("training/configs/tasks").glob("*.yaml")):
+              bank = load_task_bank(path)
+              assert bank.tasks, f"{path}: Task-Bank ist leer."
+              print(f"{path.name}: {len(bank.tasks)} Tasks")
+          PY
 
-      - name: Validate SFT configuration
+      - name: Validate SFT configurations
         run: |
-          python -c "from pathlib import Path; from aion_u1.training.config import load_sft_config; load_sft_config(Path('training/configs/sft_lora.yaml'))"
+          python - <<'PY'
+          from pathlib import Path
+          from aion_u1.training.config import load_sft_config
+          for path in sorted(Path("training/configs").glob("sft_*.yaml")):
+              load_sft_config(path)
+              print(f"{path.name}: ok")
+          PY
 
   catalog:
     # Teacher-IDs live gegen den Provider-Katalog pruefen. Der Katalog ist
