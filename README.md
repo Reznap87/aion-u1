@@ -219,7 +219,34 @@ Die freien Modelle ersetzen die Ziel-Lehrer nicht: sie validieren die Mechanik
 Lehrer-Aliase, die die Task-Bank referenziert; `tests/test_free_teacher_config.py`
 prüft, dass diese zusammenpassen.
 
-## Scoring
+## AION-Index (erste Messung, 2026-11-20)
+
+Suite `benchmark_v1.yaml` (39 Faelle, 3 je Capability), 312 Anfragen, `max_tokens 512`,
+geschätzte Kosten ~0,76 $. Der Index ist nur bei voller Capability-Abdeckung
+definiert; `gemessen` ist der geometrische Mittelwert ueber den getesteten
+Ausschnitt (bei unterschiedlicher Coverage nicht vergleichbar).
+
+| Lehrer | AION-Index | gemessen | Coverage | errored | truncated |
+|---|---|---|---|---|---|
+| minimax_m3_1_flash | **0.847** | 0.847 | 1.00 | 0 | 5 |
+| kimi_k3 | 0.793 | 0.793 | 1.00 | 2 | 5 |
+| grok_4_7 | 0.755 | 0.755 | 1.00 | 0 | 0 |
+| kimi_k2_7_code | 0.752 | 0.752 | 1.00 | 0 | 2 |
+| claude_fable_5_1 | — | 0.776 | 0.95 | 5 | 2 |
+| claude_sonnet_5_5 | — | 0.800 | 0.82 | 14 | 3 |
+| gemini_3_8_flash | — | 0.861 | 0.87 | 10 | 7 |
+| gpt_6_1_sol | — | 0.732 | 0.85 | 11 | 1 |
+
+Zwei Befunde:
+1. Der beste Einzel-Lehrer nach Index ist **minimax_m3_1_flash (0.847)** — ein
+   Open-Weight-Modell, das auch in `configs/teachers.open.yaml` steht. Das ist
+   die Zielmarke aus GOAL.md.
+2. Die teuren Cloud-Modelle haben Abdeckungsluecken (10–14 `errored`), deshalb
+   kein Index. Der Grund ist nicht die Qualitaet, sondern Laufzeit-/Laengen-
+   verhalten in dieser Suite — vor einer Interpretation muss das geklaert sein.
+
+`reports/audit-target-bench.json` traegt Provenienz, Datenhash, Suite-Hash,
+Git-Commit und Kosten je Anfrage.
 
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
 `measured_score`, `overall_score`, `errored` und `truncated`.

@@ -142,7 +142,7 @@ cases:
     verifier:
       type: regex
       values:
-        - '^(?=.*Hash)\S+(\s+\S+){0,7}$'
+        - '(?s)^(?=.*(?:Hash|Pruefsumme|Prüfsumme|Fingerabdruck|Fingerprint))\S+(\s+\S+){0,7}\s*$'
 
   - id: research.grounded_quote
     capability: research.verification
