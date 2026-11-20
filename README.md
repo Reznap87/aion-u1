@@ -131,6 +131,10 @@ kostenlosen `:free`-Modellen, ohne die Ziel-Lehrer zu verändern. Die
 freigegebenen Daten bleiben dabei deren Modellen geschuldet, nicht denen der
 Ziel-Lehrer.
 
+`--max-tokens <zahl>` begrenzt die Antwortlänge über alle Tasks hinweg. Das
+schützt ein kleines Konto: ein einzelner 900-Token-Output eines teuren Lehrers
+kostet sonst mehr als eine ganze Runde.
+
 ## Kostenlose Mechanik-Tests
 
 Die Ziel-Lehrer in `configs/teachers.yaml` sind im Katalog verifiziert, brauchen aber

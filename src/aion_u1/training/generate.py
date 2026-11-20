@@ -341,6 +341,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=4,
     )
     parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=None,
+        help=(
+            "Begrenzung der Antwortlaenge inkl. Verzeichnis-Ueberschreibung der "
+            "Tasks; schuetzt ein kleines Konto vor teuren Einzelantworten."
+        ),
+    )
+    parser.add_argument(
         "--teachers",
         default=None,
         help=(
@@ -375,6 +384,9 @@ def main(
             report_path = root / report_path
 
         bank = load_task_bank(tasks_path)
+        if args.max_tokens:
+            for task in bank.tasks:
+                task.max_tokens = args.max_tokens
 
         teachers_path = (
             Path(args.teachers)
