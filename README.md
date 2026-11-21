@@ -99,17 +99,18 @@ Die Konsequenz ist eine zweite Lehrerliste: `configs/teachers.open.yaml`
 kommerzielle Nutzung, Derivate und Ausgaben zulassen.
 
 Damit liegt die erste freigebbare Runde vor: 112 Antworten → 77 eindeutige
-Fälle → 30 verifiziert → `data/verified/pilot_open_sft.jsonl` mit
-`training_approved: true`, dokumentierter Lizenz, 0 Secrets und 0 PII
+Fälle → 30 verifiziert, mit dokumentierter Lizenz, 0 Secrets und 0 PII
 (`review/approved_ids.txt`). Die Cloud-Daten der ersten Runden bleiben
 Mechanik-Nachweise ohne Freigabe.
 
 Eine dritte Runde (`pilot_open_v2.yaml`, 19 neue Aufgaben) lieferte 152
-Antworten und 37 weitere verifizierte Kandidaten. Zusammen ergibt das
-`data/verified/pilot_open_all.jsonl` mit 67 freigegebenen Saetzen; die
-kanonische Auswahl (eine Antwort pro Aufgabengruppe, leakfrei) ergibt
-**19 Trainings- und 3 Evaluationssaetze** — die kleinen Zahlen sind der
-wahre Engpass, nicht die Kette.
+Antworten und 37 weitere verifizierte Kandidaten; die vierte
+(`pilot_open_v3.yaml`, 30 Aufgaben) und die fünfte Runde
+(`pilot_open_v4.yaml`, 14 Aufgaben) steigerten das weiter. Zusammen stehen
+in `data/verified/pilot_open_all.jsonl` **233 freigegebene Saetze**; der
+kanonische, leakfreie Split liegt als **58 Trainings- und 10
+Evaluationssaetze** vor (`pilot_open_train.jsonl`, `pilot_open_eval.jsonl`).
+Die kleinen Zahlen sind der wahre Engpass, nicht die Kette.
 
 ### Secrets und personenbezogene Daten
 
@@ -229,6 +230,13 @@ aion-u1-rank-candidates \
 ```
 
 `--tasks` ist auch beim Ranken nötig, sonst kennt er die freien Task-IDs nicht.
+`aion-u1 audit` kennt dieselbe Freiheit über `--teachers` — ohne den Schalter
+wäre der AION-Index nur für die Konfiguration messbar, die gerade antwortet.
+Bei den freien Modellen gilt ein Kontingent: parallele Audits laufen in HTTP 429,
+eine serielle Auswahl steht in `configs/teachers.free_smoke.yaml`.
+Die freie Bank deckt 12 der 13 Capabilities ab; `multimodal.grounding` bleibt
+offen, weil die freien Textmodelle keine Bilder transportieren — das ist eine
+echte Lücke und wird in `tests/test_free_teacher_config.py` so verankert.
 Die freien Modelle ersetzen die Ziel-Lehrer nicht: sie validieren die Mechanik
 (Generieren → Verifizieren → Ranking → Freigeben). Jeder freie Eintrag trägt die
 Lehrer-Aliase, die die Task-Bank referenziert; `tests/test_free_teacher_config.py`

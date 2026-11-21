@@ -20,6 +20,24 @@ def test_contains_all() -> None:
     assert score == 1.0
 
 
+def test_audit_akzeptiert_abweichende_teacher_konfiguration() -> None:
+    """`--teachers` muss auch beim Audit gelten; sonst waere der Index nur
+    fuer die Konfiguration messbar, die gerade antwortet."""
+
+    from aion_u1.cli import build_parser
+
+    args = build_parser().parse_args([
+        "audit",
+        "--suite", "evaluations/capability_suite/benchmark_v1.yaml",
+        "--teachers", "configs/teachers.free.yaml",
+        "--output", "reports/audit-free.json",
+    ])
+    assert args.teachers == "configs/teachers.free.yaml"
+
+    standard = build_parser().parse_args(["audit"])
+    assert standard.teachers is None
+
+
 def test_json_equals() -> None:
     verifier = VerifierSpec(
         type="json_equals",

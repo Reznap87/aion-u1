@@ -1,0 +1,21 @@
+teachers:
+  # Kleine Auswahl fuer serielle Messlaeufe: bei den freien Modellen gilt ein
+  # Kontingent, und parallele Audits laufen in HTTP 429. Mit einem Modell und
+  # Wiederholungen bleibt der Benchmark aussagekraeftig.
+  - alias: ernie_5_5_flash
+    display_name: Ernie 5.5 Flash (free)
+    provider: openrouter
+    candidate_model_ids:
+      - baidu/ernie-5.5-flash-preview:free
+      - baidu/ernie-5.5-flash-preview
+    model_id_env: ERNIE_5_5_FLASH_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
+
+  - alias: particle_1
+    display_name: Particle 1 (free)
+    provider: openrouter
+    candidate_model_ids:
+      - particle-ai/particle-1:free
+      - particle-ai/particle-1
+    model_id_env: PARTICLE_1_MODEL_ID
+    api_key_env: OPENROUTER_API_KEY
