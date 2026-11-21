@@ -172,6 +172,18 @@ gefixt (`CaseResult` braucht `latency_ms`).
 Lokaler Schnelltest mit dem Rauch-Adapter (3 Faecke): `gemessen 1.0` bei
 Coverage 0,14 — der Pfad läuft; ein echtes Ergebnis liegt erst mit der GPU.
 
+Erster Durchlauf (Colab, 2026-11-20, `sft_lora_open.yaml`): `status: completed`,
+T4, fp16, 39 Trainings- und 7 Evaluationssaetze, LoRA r=16, 18,5 Mio. trainierbare
+Parameter. **Drei Warnsignale**: `train_loss 0.0`, `eval_loss NaN` und nur 4
+Optimizerschritte bei einer Lernrate von 0.0 im ersten Schritt — die
+Konfiguration war fuer die Datenmenge zu stumpf (Gradient-Akkumulation 8 bei
+39 Saetzen). Der Adapter ist ein Proof, kein Ergebnis.
+
+`training/configs/sft_lora_open_v2.yaml` ist die Korrektur: 3 Epochen,
+Akkumulation 4, LR 1e-4, Warmup 5 %, ohne `load_best_model_at_end` (das bei
+`eval_loss: NaN` einen sinnlosen „Bestmodell"-Vergleich erzeugt). Erst evaluieren,
+dann ueber das Ergebnis reden.
+
 ## Wichtige Grenze
 
 Die Teacher-IDs in `configs/teachers.yaml` sind Kandidaten. Sie gelten erst
