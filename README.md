@@ -104,10 +104,11 @@ Fälle → 30 verifiziert, mit dokumentierter Lizenz, 0 Secrets und 0 PII
 Mechanik-Nachweise ohne Freigabe.
 
 Eine dritte Runde (`pilot_open_v2.yaml`, 19 neue Aufgaben) lieferte 152
-Antworten und 37 weitere verifizierte Kandidaten, eine vierte
-(`pilot_open_v3.yaml`, 30 Aufgaben) 78 weitere. Zusammen stehen in
-`data/verified/pilot_open_all.jsonl` **145 freigegebene Saetze**; der
-kanonische, leakfreie Split liegt als **39 Trainings- und 7
+Antworten und 37 weitere verifizierte Kandidaten; die vierte
+(`pilot_open_v3.yaml`, 30 Aufgaben) und die fünfte Runde
+(`pilot_open_v4.yaml`, 14 Aufgaben) steigerten das weiter. Zusammen stehen
+in `data/verified/pilot_open_all.jsonl` **233 freigegebene Saetze**; der
+kanonische, leakfreie Split liegt als **58 Trainings- und 10
 Evaluationssaetze** vor (`pilot_open_train.jsonl`, `pilot_open_eval.jsonl`).
 Die kleinen Zahlen sind der wahre Engpass, nicht die Kette.
 
@@ -155,6 +156,21 @@ Trainings-Tasks.
 ```bash
 pytest -q
 ```
+
+## Evaluierung des trainierten Modells
+
+`aion-u1-evaluate-model --base-model <id> --adapter <pfad> --suite <suite>`
+lädt Basismodell und LoRA-Adapter, wendet dieselbe Suite und Aggregation an
+und schreibt `reports/eval-*.json`. Ohne `--adapter` entsteht die Baseline des
+Basismodells. Damit ist GOAL.mds zweite Bedingung („keine Kernfaehigkeit unter
+95 % des jeweiligen besten Lehrers") messbar.
+
+Der Befehl stand vorher im Code, war aber nicht in `[project.scripts]`
+eingetragen; jetzt ist er installiert. Ein Fehler im multimodalen Pfad wurde
+gefixt (`CaseResult` braucht `latency_ms`).
+
+Lokaler Schnelltest mit dem Rauch-Adapter (3 Faecke): `gemessen 1.0` bei
+Coverage 0,14 — der Pfad läuft; ein echtes Ergebnis liegt erst mit der GPU.
 
 ## Wichtige Grenze
 
@@ -226,7 +242,97 @@ Die freien Modelle ersetzen die Ziel-Lehrer nicht: sie validieren die Mechanik
 Lehrer-Aliase, die die Task-Bank referenziert; `tests/test_free_teacher_config.py`
 prüft, dass diese zusammenpassen.
 
-## Scoring
+## AION-Index (Messung, 2026-11-20)
+
+Suite `benchmark_v1.yaml` (39 Faelle, 3 je Capability), 312 Anfragen,
+`max_tokens 512`. Der Index ist nur bei voller Capability-Abdeckung definiert;
+`gemessen` ist der geometrische Mittelwert ueber den getesteten Ausschnitt
+(bei unterschiedlicher Coverage nicht vergleichbar).
+
+Serieller Lauf (`--concurrency 1`), 6 Fehler (alle HTTP 429), sieben Lehrer mit
+voller Coverage — diese Zahlen sind die valide Basis:
+
+| Lehrer | AION-Index | gemessen | Coverage | truncated |
+|---|---|---|---|---|
+| gemini_3_8_flash | **0.878** | 0.878 | 1.00 | 10 |
+| kimi_k2_7_code | 0.816 | 0.816 | 1.00 | 3 |
+| minimax_m3_1_flash | 0.795 | 0.795 | 1.00 | 6 |
+| kimi_k3 | 0.777 | 0.777 | 1.00 | 2 |
+| claude_fable_5_1 | 0.767 | 0.767 | 1.00 | 2 |
+| grok_4_7 | 0.755 | 0.755 | 1.00 | 0 |
+| gpt_6_1_sol | 0.734 | 0.734 | 1.00 | 0 |
+| claude_sonnet_5_5 | — | 0.724 | 0.92 | 3 |
+
+Parallel-Lauf (`--concurrency 2`) zum Vergleich: 42 Fehler, alle HTTP 429; dort
+erreichten minimax 0.847 und kimi_k3 0.793, die Cloud-Modelle blieben ohne
+Index. **Drosselung verfaelscht die Reihenfolge** — die seriellen Zahlen gehen
+in die Zielmarke ein.
+
+Befund: Die Zielmarke aus GOAL.md ist **0.878 (gemini_3_8_flash)**. Achtung
+vor der zweiten Bedingung aus GOAL.md („keine Kernfaehigkeit unter 95 % des
+jeweiligen besten Lehrers"): sie verlangt eine Capability-zu-Capability-
+Messung unseres Modells, nicht nur einen Gesamtindex.
+
+`reports/audit-target-serial.json` traegt Provenienz, Datenhash, Suite-Hash,
+Git-Commit und Kosten je Anfrage.
+
+## Capability-Profil und 95-%-Schwellen
+
+GOAL.md verlangt: keine Kernfaehigkeit unter 95 % des jeweiligen besten
+Lehrers. Aus demselben seriellen Lauf:
+
+| Capability | bester Lehrer | Wert | Schwelle (95 %) |
+|---|---|---|---|
+| agent.tool_use | grok_4_7 | 0.667 | 0.633 |
+| architecture.planning | gemini_3_8_flash | 1.000 | 0.950 |
+| calibration.self_assessment | claude_fable_5_1 | 1.000 | 0.950 |
+| code.synthesis | claude_fable_5_1 | 1.000 | 0.950 |
+| efficiency.reproducible_responses | claude_fable_5_1 | 1.000 | 0.950 |
+| instruction.structured_output | claude_fable_5_1 | 1.000 | 0.950 |
+| long_context.retention | claude_fable_5_1 | 1.000 | 0.950 |
+| multilingual.quality | claude_fable_5_1 | 1.000 | 0.950 |
+| multimodal.grounding | claude_fable_5_1 | 1.000 | 0.950 |
+| reasoning.logical | claude_fable_5_1 | 1.000 | 0.950 |
+| research.verification | gemini_3_8_flash | 1.000 | 0.950 |
+| safety.injection_resistance | gemini_3_8_flash | 1.000 | 0.950 |
+| writing.quality | gemini_3_8_flash | 1.000 | 0.950 |
+
+**Befund: Ceiling-Effekt.** In 12 von 13 Capabilities erreicht ein guter Lehrer
+die volle Punktzahl, die 95-%-Schwelle liegt dort bei 0,95. Eine Schwelle, die
+nur von Modellen uebertroffen wird, die in allen Faellen alles richtig machen,
+trennt nicht zwischen „vereinigt" und „verloren" — sie trennt zwischen
+„perfekt" und „nichts". Nur `agent.tool_use` (0,667) hat eine echte
+Discriminierung.
+
+Das ist ein Argument fuer schwerere Faelle, nicht gegen die Zielvorgabe: die
+Suite braucht Faelle, bei denen gute Modelle heterogen abschneiden, sonst ist
+der Index 0,878 als Zielmarke ununterscheidbar von 1,0.
+
+## Schwere Suite (erste Messung, 2026-11-20)
+
+`benchmark_hard_v1.yaml` (26 Faelle, 2 je Capability) existiert wegen des
+Ceiling-Effekts. Serieller Lauf, 8 Lehrer:
+
+| Lehrer | Index | Coverage |
+|---|---|---|
+| grok_4_7 | 0.847 | 1.00 |
+| kimi_k2_7_code | 0.847 | 1.00 |
+| minimax_m3_1_flash | 0.847 | 1.00 |
+| gpt_6_1_sol | 0.768 | 1.00 |
+| gemini_3_8_flash | — (0.751) | 0.92 |
+| claude_fable_5_1 | 0.737 | 1.00 |
+| claude_sonnet_5_5 | 0.737 | 1.00 |
+| kimi_k3 | 0.000 | 1.00 |
+
+Die Suite trennt: 0,737 bis 0,847 statt vorher fast ueberall 1,000. Damit ist
+sie die Messbasis fuer GOAL.md, nicht `benchmark_v1`.
+
+Zwei Befunde zu kimi_k3 (Index 0,000): die Null entsteht nicht durch falsche
+Inhalte, sondern durch Format- und Abbruchprobleme — eine Antwort nannte den
+Ausdruck in Backticks (`exact_match` schlaegt dann fehl, im Prompt gefixt), eine
+andere brach mid-JSON ab. Solche Ausfaelle sind Robustheitsbefunde, keine
+Faehigkeitsurteile; sie gehoeren in die Lesart des Reports, nicht in einen
+Ruf nach besseren Faecken.
 
 `reports/audit-*.json` enthält pro Teacher `capability_scores`, `coverage`,
 `measured_score`, `overall_score`, `errored` und `truncated`.
