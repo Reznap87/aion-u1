@@ -198,8 +198,9 @@ def _mark_stale_run(output_dir: Path) -> None:
 
     Ein Prozess, der beendet wird, loest keine Ausnahme aus: das Manifest
     bleibt dann fuer immer auf `running`, und das Ausgabeverzeichnis wird
-    von der Leerlauf-Pruefung blockiert. Wer einen solchen Lauf
-    ueberschreibt, schreibt vorher den alten Stand als `failed` fest.
+    von der Leerlauf-Pruefung blockiert. Der alte Stand wird als
+    `run_manifest.stale.json` festgehalten, weil das neue Manifest diese
+    Datei sofort wieder ersetzt.
     """
 
     manifest_path = output_dir / "run_manifest.json"
@@ -226,8 +227,12 @@ def _mark_stale_run(output_dir: Path) -> None:
         "beenden (Prozess abgebrochen)."
     )
 
+    # Nicht ueberschreiben: das neue Manifest ersetzt diese Datei sofort
+    # wieder, der alte Stand waere sonst verloren.
+    stale = output_dir / "run_manifest.stale.json"
+
     try:
-        manifest_path.write_text(
+        stale.write_text(
             json.dumps(
                 bestehend,
                 ensure_ascii=False,
