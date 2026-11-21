@@ -56,15 +56,6 @@ teachers:
     model_id_env: NEMOTRON_3_5_SUPER_VL_MODEL_ID
     api_key_env: OPENROUTER_API_KEY
 
-  - alias: dots_3_note
-    display_name: Dots 3 Note (free)
-    provider: openrouter
-    candidate_model_ids:
-      - dots-studio/dots-3-note-preview:free
-      - dots-studio/dots-3-note-preview
-    model_id_env: DOTS_3_NOTE_MODEL_ID
-    api_key_env: OPENROUTER_API_KEY
-
   - alias: nemotron_3_5_lightning
     display_name: Nemotron 3.5 Lightning (free)
     provider: openrouter

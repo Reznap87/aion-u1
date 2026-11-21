@@ -66,7 +66,7 @@ tasks:
     teacher_aliases:
       - ernie_5_5_flash
       - particle_1
-      - dots_3_note
+      - ling_3_2_flash
       - nemotron_3_5_lightning
     samples_per_teacher: 1
     temperature: 0.1
@@ -126,7 +126,7 @@ tasks:
     teacher_aliases:
       - ernie_5_5_flash
       - particle_1
-      - dots_3_note
+      - ling_3_2_flash
       - nemotron_3_5_lightning
     samples_per_teacher: 1
     temperature: 0.1
@@ -166,7 +166,7 @@ tasks:
     teacher_aliases:
       - ernie_5_5_flash
       - particle_1
-      - dots_3_note
+      - nemotron_3_5_super_vl
       - nemotron_3_nano_omni
     samples_per_teacher: 1
     temperature: 0.1
