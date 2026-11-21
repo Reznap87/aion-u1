@@ -175,29 +175,44 @@ def test_stale_lauf_wird_als_failed_vermerkt(tmp_path):
     """Ein beendeter Prozess laesst `running` zurueck — das darf nicht
     bleiben, sonst sieht das Verzeichnis fuer immer laufend aus."""
 
-    pfad = _manifest(tmp_path, "running")
+    _manifest(tmp_path, "running")
 
     _mark_stale_run(tmp_path)
 
-    stand = json.loads(pfad.read_text(encoding="utf-8"))
+    stand = json.loads(
+        (tmp_path / "run_manifest.stale.json").read_text(
+            encoding="utf-8"
+        )
+    )
     assert stand["status"] == "failed"
     assert "abgebrochen" in stand["error"]
 
 
-def test_abgeschlossener_lauf_wird_nicht_angetastet(tmp_path):
-    pfad = _manifest(tmp_path, "completed")
+def test_stale_landet_nicht_im_aktiven_manifest(tmp_path):
+    """Das neue Manifest ersetzt `run_manifest.json`; der Fund muss also
+    getrennt liegen, sonst waere er wirkungslos."""
+
+    pfad = _manifest(tmp_path, "running")
 
     _mark_stale_run(tmp_path)
 
     assert json.loads(pfad.read_text(encoding="utf-8")) == {
-        "status": "completed"
+        "status": "running"
     }
+
+
+def test_abgeschlossener_lauf_wird_nicht_abgelegt(tmp_path):
+    _manifest(tmp_path, "completed")
+
+    _mark_stale_run(tmp_path)
+
+    assert not (tmp_path / "run_manifest.stale.json").exists()
 
 
 def test_ohne_manifest_ist_nichts_zu_tun(tmp_path):
     _mark_stale_run(tmp_path)
 
-    assert not (tmp_path / "run_manifest.json").exists()
+    assert not (tmp_path / "run_manifest.stale.json").exists()
 
 
 def test_kaputtes_manifest_wird_ignoriert(tmp_path):
@@ -207,3 +222,4 @@ def test_kaputtes_manifest_wird_ignoriert(tmp_path):
     _mark_stale_run(tmp_path)
 
     assert pfad.read_text(encoding="utf-8") == "{kaputt"
+    assert not (tmp_path / "run_manifest.stale.json").exists()
