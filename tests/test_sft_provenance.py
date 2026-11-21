@@ -7,7 +7,13 @@ Manifest bekam still `git_commit: null`.
 
 from pathlib import Path
 
-from aion_u1.training.sft import _git_commit, _local_weights_digest
+import json
+
+from aion_u1.training.sft import (
+    _git_commit,
+    _local_weights_digest,
+    _mark_stale_run,
+)
 
 SHA = "a" * 40
 
@@ -154,3 +160,50 @@ def test_weights_summe_ohne_gewichte(tmp_path):
     (tmp_path / "config.json").write_text("{}", encoding="utf-8")
 
     assert _local_weights_digest(str(tmp_path)) is None
+
+
+def _manifest(tmp_path: Path, status: str) -> Path:
+    pfad = tmp_path / "run_manifest.json"
+    pfad.write_text(
+        json.dumps({"status": status}),
+        encoding="utf-8",
+    )
+    return pfad
+
+
+def test_stale_lauf_wird_als_failed_vermerkt(tmp_path):
+    """Ein beendeter Prozess laesst `running` zurueck — das darf nicht
+    bleiben, sonst sieht das Verzeichnis fuer immer laufend aus."""
+
+    pfad = _manifest(tmp_path, "running")
+
+    _mark_stale_run(tmp_path)
+
+    stand = json.loads(pfad.read_text(encoding="utf-8"))
+    assert stand["status"] == "failed"
+    assert "abgebrochen" in stand["error"]
+
+
+def test_abgeschlossener_lauf_wird_nicht_angetastet(tmp_path):
+    pfad = _manifest(tmp_path, "completed")
+
+    _mark_stale_run(tmp_path)
+
+    assert json.loads(pfad.read_text(encoding="utf-8")) == {
+        "status": "completed"
+    }
+
+
+def test_ohne_manifest_ist_nichts_zu_tun(tmp_path):
+    _mark_stale_run(tmp_path)
+
+    assert not (tmp_path / "run_manifest.json").exists()
+
+
+def test_kaputtes_manifest_wird_ignoriert(tmp_path):
+    pfad = tmp_path / "run_manifest.json"
+    pfad.write_text("{kaputt", encoding="utf-8")
+
+    _mark_stale_run(tmp_path)
+
+    assert pfad.read_text(encoding="utf-8") == "{kaputt"

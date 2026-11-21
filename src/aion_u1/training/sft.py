@@ -193,6 +193,54 @@ def _package_versions() -> dict[str, str]:
     return versions
 
 
+def _mark_stale_run(output_dir: Path) -> None:
+    """Einen zuvor abgebrochenen Lauf als `failed` vermerken.
+
+    Ein Prozess, der beendet wird, loest keine Ausnahme aus: das Manifest
+    bleibt dann fuer immer auf `running`, und das Ausgabeverzeichnis wird
+    von der Leerlauf-Pruefung blockiert. Wer einen solchen Lauf
+    ueberschreibt, schreibt vorher den alten Stand als `failed` fest.
+    """
+
+    manifest_path = output_dir / "run_manifest.json"
+
+    if not manifest_path.is_file():
+        return
+
+    try:
+        bestehend = json.loads(
+            manifest_path.read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError):
+        return
+
+    if not isinstance(bestehend, dict):
+        return
+
+    if bestehend.get("status") != "running":
+        return
+
+    bestehend["status"] = "failed"
+    bestehend["error"] = (
+        "Vorangehender Lauf wurde beendet, ohne sich selbst zu "
+        "beenden (Prozess abgebrochen)."
+    )
+
+    try:
+        manifest_path.write_text(
+            json.dumps(
+                bestehend,
+                ensure_ascii=False,
+                indent=2,
+                default=str,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        return
+
+
 def _write_manifest(
     path: Path,
     payload: dict[str, Any],
@@ -741,6 +789,13 @@ def run_sft(
             ),
         },
     }
+
+    if (
+        output_dir.exists()
+        and any(output_dir.iterdir())
+        and config.run.overwrite_output_dir
+    ):
+        _mark_stale_run(output_dir)
 
     _write_manifest(
         manifest_path,
