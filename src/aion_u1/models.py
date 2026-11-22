@@ -85,6 +85,7 @@ class TeacherResponse(BaseModel):
     content: str
     finish_reason: str | None = None
     usage: dict[str, int] = Field(default_factory=dict)
+    cost_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False, strict=True)
     latency_ms: int = 0
     max_tokens: int | None = None
 

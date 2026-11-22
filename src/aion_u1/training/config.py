@@ -77,6 +77,10 @@ class PeftConfig(BaseModel):
 class TrainingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    max_steps: int = Field(default=-1, ge=-1)
+    save_steps: int = Field(default=500, ge=1)
+    evaluate_before_training: bool = False
+
     num_train_epochs: float = Field(
         default=1.0,
         gt=0,

@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 from ..models import TeacherResponse
-from .base import TeacherError, TeacherTransientError
+from .base import TeacherError, TeacherHTTPError, TeacherTransientError
 
 
 RETRYABLE_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
@@ -16,11 +16,6 @@ RETRYABLE_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
 # OpenRouter antwortet auf Konten ohne Guthaben in dem Fall mit HTTP 402,
 # obwohl dieselbe Anfrage mit max_tokens durchgeht.
 DEFAULT_MAX_TOKENS = 1024
-
-# Untere Grenze, bis zu der bei HTTP 402 herunterskaliert wird.
-MIN_MAX_TOKENS = 16
-# Maximale Anzahl Herunterskalierungen pro Anfrage.
-MAX_SHRINKS = 4
 
 
 def _retry_after_seconds(value: str | None) -> float | None:
@@ -39,7 +34,7 @@ class OpenRouterClient:
         api_key: str,
         base_url: str = "https://openrouter.ai/api/v1",
         timeout: float = 180.0,
-        max_attempts: int = 3,
+        max_attempts: int = 1,
     ):
         self._api_key = api_key
         self._max_attempts = max(1, max_attempts)
@@ -69,11 +64,19 @@ class OpenRouterClient:
                 f"{self._base_url}/models"
             )
             response.raise_for_status()
-            payload = response.json()
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise TeacherError("Ungültiger Teacher-Katalog") from exc
+        except httpx.HTTPStatusError as exc:
+            raise TeacherHTTPError(exc.response.status_code) from exc
         except httpx.HTTPError as exc:
             raise TeacherError(
-                f"Teacher-Katalog konnte nicht geladen werden: {exc}"
+                "Teacher-Katalog konnte nicht geladen werden."
             ) from exc
+
+        if not isinstance(payload, dict):
+            raise TeacherError("Ungültiger Teacher-Katalog")
 
         data = payload.get("data", [])
 
@@ -108,7 +111,6 @@ class OpenRouterClient:
         started = time.monotonic()
         last_error: TeacherTransientError | None = None
         retries = 0
-        shrinks = 0
 
         while True:
             try:
@@ -127,38 +129,8 @@ class OpenRouterClient:
             except httpx.HTTPStatusError as exc:
                 code = exc.response.status_code
 
-                if code == 402:
-                    if (
-                        attempt_max_tokens > MIN_MAX_TOKENS
-                        and shrinks < MAX_SHRINKS
-                    ):
-                        shrunk = max(
-                            MIN_MAX_TOKENS, attempt_max_tokens // 8
-                        )
-                        attempt_max_tokens = shrunk
-                        shrinks += 1
-                        await asyncio.sleep(
-                            min(2 ** (shrinks - 1), 8.0)
-                        )
-                        continue
-
-                    # Auf der Untergrenze haengt 402 am Provider-Routing,
-                    # nicht an der Anfrage: normal wiederholen.
-                    retries += 1
-                    if retries >= self._max_attempts:
-                        raise TeacherError(
-                            "Teacher HTTP 402: Kosten-Obergrenze des Kontos "
-                            "ueberschritten (zuletzt max_tokens="
-                            f"{attempt_max_tokens}). Auf Guthaben aufladen "
-                            "oder --max-tokens kleiner waehlen."
-                        ) from exc
-                    await asyncio.sleep(
-                        min(2 ** (retries - 1), 8.0)
-                    )
-                    continue
-
                 if code not in RETRYABLE_STATUSES:
-                    raise TeacherError(f"Teacher HTTP {code}") from exc
+                    raise TeacherHTTPError(code) from exc
 
                 retries += 1
                 last_error = TeacherTransientError(
@@ -192,6 +164,8 @@ class OpenRouterClient:
 
         choice = choices[0]
         message = choice.get("message", {}) if isinstance(choice, dict) else {}
+        if not isinstance(message, dict):
+            raise TeacherError("Teacher-Antwort enthält keine gültige message")
         content = message.get("content", "")
 
         if isinstance(content, list):
@@ -214,7 +188,7 @@ class OpenRouterClient:
 
         if isinstance(raw_usage, dict):
             for key, value in raw_usage.items():
-                if isinstance(value, (int, float)):
+                if key != "cost" and type(value) in (int, float):
                     usage[str(key)] = int(value)
 
         return TeacherResponse(
@@ -227,6 +201,7 @@ class OpenRouterClient:
                 else None
             ),
             usage=usage,
+            cost_usd=raw_usage.get("cost") if isinstance(raw_usage, dict) else None,
             latency_ms=int((time.monotonic() - started) * 1000),
             max_tokens=attempt_max_tokens,
         )

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aion-u1"
-version = "0.2.0"
+version = "0.4.0"
 description = "Training and evaluation infrastructure for the AION-U1 unified model"
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,6 +19,15 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",
+    "openai>=1,<3",
+    "psutil>=5.9,<8",
+]
+inference = [
+    "torch>=2.4,<3",
+    "transformers==4.46.3",
+    "accelerate==1.1.1",
+    "safetensors>=0.4.5,<1",
+    "sentencepiece>=0.2,<1",
 ]
 train = [
     "torch>=2.4,<3",

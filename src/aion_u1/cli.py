@@ -371,6 +371,54 @@ def command_dataset(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_model_check(args: argparse.Namespace) -> int:
+    from .inference import load_model_artifact
+
+    artifact = load_model_artifact(Path(args.run_dir).expanduser().absolute())
+    print(json.dumps({
+        "artifact_verified": True,
+        "artifact_sha256": artifact.sha256,
+        "training_commit": artifact.training_commit,
+        "base_revision": artifact.base_revision,
+        "runtime_verified": False,
+        "quality_verified": False,
+        "production_ready": False,
+    }, ensure_ascii=False, indent=2))
+    return 0
+
+
+def command_serve(args: argparse.Namespace) -> int:
+    from .inference import LocalModelEngine, load_model_artifact
+    from .server import InferenceServer
+
+    api_key = os.getenv("AION_U1_API_KEY", "")
+    if not api_key or api_key != api_key.strip():
+        raise ValueError("AION_U1_API_KEY fehlt oder enthält äußere Leerzeichen.")
+    if not 1 <= args.port <= 65535:
+        raise ValueError("Port muss zwischen 1 und 65535 liegen.")
+    if not 1 <= args.max_new_tokens <= 8192:
+        raise ValueError("Ungültiges Ausgabetokenlimit.")
+    artifact = load_model_artifact(Path(args.run_dir).expanduser().absolute())
+    engine = LocalModelEngine(
+        artifact,
+        model_id=args.model_id,
+        context_window=args.context_window,
+        device=args.device,
+        dtype=args.dtype,
+    )
+    with InferenceServer(
+        (args.host, args.port), engine, api_key,
+        max_new_tokens=args.max_new_tokens,
+    ) as server:
+        print(
+            f"AION-U1-Inferenz auf {args.host}:{args.port}; "
+            f"Modell {engine.model_id}; keine Qualitäts- oder Produktionsfreigabe.",
+            flush=True,
+        )
+        server.serve_forever()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="aion-u1",
@@ -471,6 +519,27 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_dataset,
     )
 
+    model_check = subparsers.add_parser(
+        "model-check",
+        help="Lokalen vollständigen Modellexport und seine Hashes prüfen",
+    )
+    model_check.add_argument("--run-dir", required=True)
+    model_check.set_defaults(func=command_model_check)
+
+    serve = subparsers.add_parser(
+        "serve",
+        help="Verifiziertes lokales Modell für TankAI bereitstellen",
+    )
+    serve.add_argument("--run-dir", required=True)
+    serve.add_argument("--model-id", default="aion-u1")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8091)
+    serve.add_argument("--context-window", type=int, default=4096)
+    serve.add_argument("--max-new-tokens", type=int, default=2048)
+    serve.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
+    serve.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto", help="Gewichtspräzision; reduzierte Präzision kann die Modellantwort verändern.")
+    serve.set_defaults(func=command_serve)
+
     return parser
 
 
@@ -482,7 +551,7 @@ def main() -> int:
 
     try:
         return int(args.func(args))
-    except (ValueError, TeacherError, FileNotFoundError) as exc:
+    except (ValueError, TeacherError, OSError, RuntimeError) as exc:
         print(f"Fehler: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
