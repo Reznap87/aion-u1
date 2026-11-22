@@ -9,6 +9,14 @@ class TeacherError(RuntimeError):
     """Fehler bei der Kommunikation mit einem Teacher-Provider."""
 
 
+class TeacherHTTPError(TeacherError):
+    """HTTP status without potentially sensitive provider response text."""
+
+    def __init__(self, status_code: int):
+        self.status_code = status_code
+        super().__init__(f"Teacher HTTP {status_code}")
+
+
 class TeacherTransientError(TeacherError):
     """Vorübergehender Provider-Fehler, bei dem ein Retry sinnvoll sein kann."""
 

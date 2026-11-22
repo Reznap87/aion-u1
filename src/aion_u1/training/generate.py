@@ -4,9 +4,12 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 import os
 import sys
+import tempfile
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -14,12 +17,14 @@ import yaml
 from dotenv import load_dotenv
 
 from ..models import TeacherConfig
+from ..reasoning import strip_reasoning
+from ..teachers.base import TeacherError, TeacherHTTPError
 from ..teachers.openrouter import OpenRouterClient
 from ..teachers.resolver import (
     TeacherResolution,
     resolve_teachers,
 )
-from .data import write_jsonl
+from .checkpoint import CandidateCheckpoint
 from .tasks import (
     TaskBank,
     TaskSpec,
@@ -90,6 +95,54 @@ def candidate_id(
     return f"aion-candidate-{digest[:24]}"
 
 
+def request_fingerprint(task: TaskSpec, model_id: str, sample: int, content: Any) -> str:
+    payload = {
+        "task": task.model_dump(mode="json"), "model": model_id,
+        "sample": sample, "input": content,
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+
+
+def resumed_keys(
+    rows: list[dict[str, Any]], bank: TaskBank, root: Path,
+) -> set[tuple[str, str, str, int]]:
+    tasks = bank.task_map()
+    seen: set[tuple[str, str, str, int]] = set()
+    for row in rows:
+        cost = row.get("cost_usd")
+        if cost is not None and (
+            type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0
+        ):
+            raise ValueError("Checkpoint enthält ungültige Kostenangaben.")
+        task = tasks.get(row.get("task_id"))
+        alias = row.get("teacher_alias")
+        model = row.get("teacher_model_id")
+        sample = row.get("teacher_sample_index")
+        if (
+            task is None or alias not in task.teacher_aliases
+            or not isinstance(model, str) or not model
+            or type(sample) is not int or not 0 <= sample < task.samples_per_teacher
+            or not isinstance(row.get("response"), str)
+        ):
+            raise ValueError("Checkpoint passt nicht zur Aufgabenbank.")
+        content = build_task_input(task, root)
+        if (
+            row.get("prompt") != task.prompt or row.get("input_content") != content
+            or row.get("capabilities") != [task.capability]
+            or row.get("id") != candidate_id(task.id, alias, model, sample, row["response"])
+            or (row.get("request_fingerprint") is not None and
+                row["request_fingerprint"] != request_fingerprint(task, model, sample, content))
+        ):
+            raise ValueError("Checkpoint-Inhalt oder Anfragekonfiguration wurde verändert.")
+        key = (task.id, alias, model, sample)
+        if key in seen:
+            raise ValueError("Checkpoint enthält doppelte Aufträge.")
+        seen.add(key)
+    return seen
+
+
 async def generate_one(
     client: OpenRouterClient,
     resolution: TeacherResolution,
@@ -97,11 +150,18 @@ async def generate_one(
     sample_index: int,
     semaphore: asyncio.Semaphore,
     root: Path,
+    stop: asyncio.Event | None = None,
 ) -> tuple[
     dict[str, Any] | None,
     dict[str, Any] | None,
 ]:
     async with semaphore:
+        if stop is not None and stop.is_set():
+            return None, {
+                "task_id": task.id, "teacher_alias": resolution.config.alias,
+                "teacher_model_id": resolution.model_id, "sample_index": sample_index,
+                "skipped": True, "error_code": "run_stopped",
+            }
         try:
             content = build_task_input(task, root)
 
@@ -116,6 +176,7 @@ async def generate_one(
                 temperature=task.temperature,
                 max_tokens=task.max_tokens,
             )
+            response_text, reasoning_stripped = strip_reasoning(response.content)
 
             generated_at = datetime.now(
                 timezone.utc
@@ -127,7 +188,7 @@ async def generate_one(
                     resolution.config.alias,
                     response.model_id,
                     sample_index,
-                    response.content,
+                    response_text,
                 ),
                 "task_id": task.id,
                 "group_id": task.id,
@@ -135,16 +196,23 @@ async def generate_one(
                 "prompt": task.prompt,
                 "input_content": content,
                 "contains_media": task.modality == "image",
-                "response": response.content,
+                "response": response_text,
+                "reasoning_stripped": reasoning_stripped,
                 "capabilities": [task.capability],
                 "teacher_alias": resolution.config.alias,
                 "teacher_model_id": response.model_id,
                 "teacher_sample_index": sample_index,
                 "latency_ms": response.latency_ms,
                 "usage": response.usage,
+                "cost_usd": response.cost_usd,
+                "request_fingerprint": request_fingerprint(
+                    task, resolution.model_id or "", sample_index, content
+                ),
                 "finish_reason": response.finish_reason,
+                "max_tokens": response.max_tokens,
                 "provenance": {
                     "source": "teacher_generated",
+                    "external_untrusted": True,
                     "license": "unreviewed",
                     "training_approved": False,
                     "teacher_alias": resolution.config.alias,
@@ -163,14 +231,17 @@ async def generate_one(
             return row, None
 
         except Exception as exc:
+            status = exc.status_code if isinstance(exc, TeacherHTTPError) else None
+            if status in {401, 402, 403} and stop is not None:
+                stop.set()
             error = {
                 "task_id": task.id,
                 "teacher_alias": resolution.config.alias,
                 "teacher_model_id": resolution.model_id,
                 "sample_index": sample_index,
-                "error": (
-                    f"{type(exc).__name__}: {exc}"
-                )[:1000],
+                "error": f"Teacher HTTP {status}" if status else "Teacher request failed",
+                "http_status": status,
+                "error_code": "payment_required" if status == 402 else "teacher_request_failed",
             }
 
             return None, error
@@ -182,15 +253,27 @@ async def generate_candidates(
     *,
     root: Path,
     concurrency: int,
+    checkpoint: CandidateCheckpoint | None = None,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
     list[dict[str, Any]],
+    dict[str, Any],
 ]:
     if not configs:
         raise ValueError(
             "Keine Teacher sind konfiguriert."
         )
+    if not 1 <= concurrency <= 32:
+        raise ValueError("concurrency muss zwischen 1 und 32 liegen.")
+    if len({config.alias for config in configs}) != len(configs):
+        raise ValueError("Doppelte Teacher-Aliase.")
+    existing = list(checkpoint.rows) if checkpoint else []
+    seen = resumed_keys(existing, bank, root)
+    for task in bank.tasks:
+        if len(set(task.teacher_aliases)) != len(task.teacher_aliases):
+            raise ValueError("Doppelte Teacher-Aliase in einer Aufgabe.")
+        build_task_input(task, root)
 
     api_key = os.getenv(
         configs[0].api_key_env,
@@ -222,10 +305,18 @@ async def generate_candidates(
             resolution.config.alias: resolution
             for resolution in resolutions
         }
+        for _task_id, alias, model_id, _sample in seen:
+            resolution = resolution_by_alias.get(alias)
+            if (
+                resolution is None or resolution.status != "verified"
+                or resolution.model_id != model_id
+            ):
+                raise ValueError("Checkpoint-Modell stimmt nicht mit dem verifizierten Teacher überein.")
 
         semaphore = asyncio.Semaphore(
-            max(1, concurrency)
+            concurrency
         )
+        stop = asyncio.Event()
 
         jobs: list[
             asyncio.Task[
@@ -264,6 +355,8 @@ async def generate_candidates(
                 for sample_index in range(
                     task.samples_per_teacher
                 ):
+                    if (task.id, alias, resolution.model_id, sample_index) in seen:
+                        continue
                     jobs.append(
                         asyncio.create_task(
                             generate_one(
@@ -273,6 +366,7 @@ async def generate_candidates(
                                 sample_index,
                                 semaphore,
                                 root,
+                                stop,
                             )
                         )
                     )
@@ -280,21 +374,22 @@ async def generate_candidates(
             if not task_hat_lehrer:
                 tasks_ohne_lehrer.append(task.id)
 
-        outcomes = (
-            await asyncio.gather(*jobs)
-            if jobs
-            else []
-        )
-
-        rows: list[dict[str, Any]] = []
+        rows: list[dict[str, Any]] = existing
         errors: list[dict[str, Any]] = []
-
-        for row, error in outcomes:
-            if row is not None:
-                rows.append(row)
-
-            if error is not None:
-                errors.append(error)
+        try:
+            for outcome in asyncio.as_completed(jobs):
+                row, error = await outcome
+                if row is not None:
+                    if checkpoint:
+                        checkpoint.append(row)
+                    rows.append(row)
+                if error is not None:
+                    errors.append(error)
+        finally:
+            for job in jobs:
+                if not job.done():
+                    job.cancel()
+            await asyncio.gather(*jobs, return_exceptions=True)
 
         resolution_report = [
             resolution_to_dict(resolution)
@@ -319,16 +414,21 @@ def write_json(
         exist_ok=True,
     )
 
-    path.write_text(
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=2,
-            default=str,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent,
+            prefix=path.name + ".", suffix=".tmp", delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(payload, handle, ensure_ascii=False, indent=2, allow_nan=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -370,6 +470,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--resume", action="store_true",
+        help="Vorhandene Kandidaten erhalten und nur fehlende Antworten erzeugen",
+    )
+    parser.add_argument(
         "--teachers",
         default=None,
         help=(
@@ -404,7 +508,9 @@ def main(
             report_path = root / report_path
 
         bank = load_task_bank(tasks_path)
-        if args.max_tokens:
+        if args.max_tokens is not None:
+            if not 1 <= args.max_tokens <= 32_768:
+                raise ValueError("max-tokens muss zwischen 1 und 32768 liegen.")
             for task in bank.tasks:
                 task.max_tokens = args.max_tokens
 
@@ -419,45 +525,53 @@ def main(
 
         configs = load_teacher_configs(root, teachers_path)
 
-        (
-            rows,
-            errors,
-            resolutions,
-            uebersprungen,
-        ) = asyncio.run(
-            generate_candidates(
-                configs,
-                bank,
-                root=root,
-                concurrency=args.concurrency,
+        if report_path.resolve() in {
+            output_path.resolve(), output_path.with_name(output_path.name + ".lock").resolve()
+        }:
+            raise ValueError("Report und Checkpoint müssen verschiedene Dateien sein.")
+        if report_path.exists() and not args.resume:
+            raise ValueError("Report existiert bereits. Neuen Pfad oder --resume verwenden.")
+        with CandidateCheckpoint(output_path, resume=args.resume) as checkpoint:
+            reused = len(checkpoint.rows)
+            legacy = sum("request_fingerprint" not in row for row in checkpoint.rows)
+            rows, outcomes, resolutions, uebersprungen = asyncio.run(
+                generate_candidates(
+                    configs, bank, root=root, concurrency=args.concurrency,
+                    checkpoint=checkpoint,
+                )
             )
-        )
+            errors = [error for error in outcomes if not error.get("skipped")]
+            skipped_candidates = sum(bool(error.get("skipped")) for error in outcomes)
+            expected = sum(len(task.teacher_aliases) * task.samples_per_teacher for task in bank.tasks)
+            complete = not errors and not skipped_candidates and len(rows) == expected
+            costs = [row.get("cost_usd") for row in rows]
 
-        write_jsonl(rows, output_path)
-
-        report = {
-            "generated_at": datetime.now(
-                timezone.utc
-            ).isoformat(),
-            "tasks": len(bank.tasks),
-            "candidates": len(rows),
-            "errors": len(errors),
-            "teacher_resolutions": resolutions,
-            "skipped": uebersprungen,
-            "output": str(output_path),
-            "error_details": errors,
-        }
-
-        write_json(report_path, report)
-
-        print(
-            json.dumps(
-                report,
-                ensure_ascii=False,
-                indent=2,
-                default=str,
-            )
-        )
+            report = {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "tasks": len(bank.tasks),
+                "candidates": len(rows),
+                "errors": len(errors),
+                "status": "completed" if complete else "partial",
+                "reused_candidates": reused,
+                "new_candidates": len(rows) - reused,
+                "legacy_reused_candidates": legacy,
+                "skipped": uebersprungen,
+                "skipped_candidates": skipped_candidates,
+                "expected_candidates": expected,
+                "known_cost_usd": float(sum(
+                    (Decimal(str(cost)) for cost in costs if cost is not None), Decimal(0)
+                )),
+                "unknown_cost_candidates": sum(cost is None for cost in costs),
+                "stop_reason": next(
+                    (error["error_code"] for error in errors
+                     if error.get("http_status") in {401, 402, 403}), None
+                ),
+                "teacher_resolutions": resolutions,
+                "output": str(output_path),
+                "error_details": errors,
+            }
+            write_json(report_path, report)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
 
         if uebersprungen["unbekannte_aliase"]:
             print(
@@ -477,18 +591,22 @@ def main(
                 file=sys.stderr,
             )
 
-        return 0 if rows else 1
+        return 0 if complete else (2 if rows else 1)
 
     except (
         ValueError,
         OSError,
         json.JSONDecodeError,
+        TeacherError,
     ) as exc:
         print(
             f"Fehler: {exc}",
             file=sys.stderr,
         )
         return 1
+    except KeyboardInterrupt:
+        print("Abgebrochen; gespeicherte Kandidaten bleiben erhalten.", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":

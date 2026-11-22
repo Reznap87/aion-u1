@@ -1,0 +1,9 @@
+{
+  "corpus": "project-authored-comparison-independent-eval-v1",
+  "cases": 18,
+  "sha256": "abcb71d1bb5e5e089c50748f69401bfe511c143e3bf9e3a594bb34a4ebe7099e",
+  "source": "project-authored integer pairs and prompt formulations",
+  "external_calls": 0,
+  "training_approved": false,
+  "limitations": "Small authored integer-comparison and JSON-output check; no general quality claim."
+}

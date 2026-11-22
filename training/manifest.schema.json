@@ -47,6 +47,25 @@
     },
     "artifacts": {
       "type": "object"
+    },
+    "inference_artifacts": {
+      "description": "Exact relative filename to SHA-256 inventory for each local model export.",
+      "type": "object",
+      "properties": {
+        "final_model": { "$ref": "#/$defs/file_hashes" },
+        "merged_model": { "$ref": "#/$defs/file_hashes" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "file_hashes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
     }
   },
   "additionalProperties": true
