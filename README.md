@@ -184,6 +184,38 @@ Akkumulation 4, LR 1e-4, Warmup 5 %, ohne `load_best_model_at_end` (das bei
 `eval_loss: NaN` einen sinnlosen „Bestmodell"-Vergleich erzeugt). Erst evaluieren,
 dann ueber das Ergebnis reden.
 
+## Unser erstes Messergebnis (Adapter v3, 2026-11-24)
+
+Gemessen mit `benchmark_hard_text_v1.yaml` (24 Faelle, 12 Text-Capabilities),
+Basis `Qwen/Qwen2.5-1.5B-Instruct`, LoRA v3 (58 Trainingssaetze, 3 Epochen,
+fp32), `--max-tokens 512`:
+
+| Capability | Score |
+|---|---|
+| calibration.self_assessment | 1.00 |
+| efficiency.reproducible_responses | 1.00 |
+| long_context.retention | 1.00 |
+| multilingual.quality | 1.00 |
+| safety.injection_resistance | 1.00 |
+| agent.tool_use | 0.50 |
+| architecture.planning | 0.50 |
+| research.verification | 0.50 |
+| code.synthesis | 0.00 |
+| instruction.structured_output | 0.00 |
+| reasoning.logical | 0.00 |
+| writing.quality | 0.00 |
+
+**12 von 24 Faellen korrekt**, `gemessen 0.0`, **kein AION-Index** (vier
+Capabilities liegen auf Null, deshalb verbietet die Regel der geometrische
+Mittelwert; die Coverage liegt mit 0.92 unter 1, weil drei Antworten bei
+`max_tokens 512` abgeschnitten wurden).
+
+Drei lesbare Konsequenzen: (1) Code, Reasoning, strukturierte Ausgabe und
+Writing brauchen gezielte Trainingsdaten, nicht nur Umfang; (2) `max_tokens`
+muss fuer diese Faecke mindestens 1024 betragen; (3) die 0,847-Marke ist mit
+diesem Stand weit entfernt — das ist die ehrliche Baseline, von der aus jetzt
+gelernt wird.
+
 ## Wichtige Grenze
 
 Die Teacher-IDs in `configs/teachers.yaml` sind Kandidaten. Sie gelten erst

@@ -71,6 +71,10 @@ def _laden(base_model: str, adapter: str | None, device: str):
         kwargs["device_map"] = lade_device
     if torch.cuda.is_available() and (device == "cuda" or device == "auto"):
         kwargs["torch_dtype"] = torch.float16
+    else:
+        # Ohne GPU braucht das 1.5B-Modell in fp32 ~6 GB Arbeitsspeicher und
+        # laesst viele Rechner am Laden scheitern. fp16 halbiert den Bedarf.
+        kwargs["torch_dtype"] = torch.float16
     modell = AutoModelForCausalLM.from_pretrained(base_model, **kwargs)
     if adapter:
         from peft import PeftModel
