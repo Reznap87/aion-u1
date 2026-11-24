@@ -94,6 +94,21 @@ def test_not_contains_findet_grosses_verbotszeichen() -> None:
     assert score == 0.0
 
 
+def test_not_contains_bei_leerer_antwort_falsch() -> None:
+    """Ein verbotenes Wort zu vermeiden ist keine Lösung, wenn gar nichts
+    geantwortet wird."""
+    verifier = VerifierSpec(
+        type="not_contains",
+        values=["Daten"],
+    )
+
+    score, _reason = score_response("", verifier)
+    assert score == 0.0
+
+    score, _reason = score_response("   \n", verifier)
+    assert score == 0.0
+
+
 def test_failed_verifier() -> None:
     verifier = VerifierSpec(
         type="exact_match",

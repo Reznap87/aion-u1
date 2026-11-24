@@ -68,6 +68,10 @@ def score_response(
 
     if verifier.type == "not_contains":
         kleiner = text.lower()
+        if not kleiner:
+            # Eine leere Antwort enthält zwar kein verbotenes Wort, erfüllt
+            # die Aufgabe aber nicht.
+            return 0.0, "Leere Antwort"
         forbidden = [value for value in verifier.values if value.lower() in kleiner]
 
         if forbidden:

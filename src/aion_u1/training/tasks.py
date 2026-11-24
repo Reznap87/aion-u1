@@ -332,10 +332,11 @@ def verify_response(
         return run_python_tests(text, verifier)
 
     if verifier.type == "contains_all":
+        kleiner = text.lower()
         missing = [
             value
             for value in verifier.values
-            if value not in text
+            if value.lower() not in kleiner
         ]
 
         return VerificationResult(
@@ -368,10 +369,20 @@ def verify_response(
         )
 
     if verifier.type == "not_contains":
+        kleiner = text.lower()
+        if not kleiner:
+            # Eine leere Antwort vermeidet ein verbotenes Wort zwar, erfuellt
+            # die Aufgabe aber nicht.
+            return VerificationResult(
+                score=0.0,
+                passed=False,
+                reason="Leere Antwort",
+                method=verifier.type,
+            )
         forbidden = [
             value
             for value in verifier.values
-            if value in text
+            if value.lower() in kleiner
         ]
 
         return VerificationResult(
