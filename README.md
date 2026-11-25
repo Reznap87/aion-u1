@@ -210,6 +210,15 @@ Capabilities liegen auf Null, deshalb verbietet die Regel der geometrische
 Mittelwert; die Coverage liegt mit 0.92 unter 1, weil drei Antworten bei
 `max_tokens 512` abgeschnitten wurden).
 
+**Messstand 2026-11-24 (abgeschlossen):** Adapter 12/24 korrekt, Baseline
+8/24 — der Adapter bringt also vier zusaetzlich geloeste Faelle. Ein AION-Index
+bleibt **nicht berechenbar**: vier Capabilities liegen auf Null und drei
+Faelle enden mit `finish_reason: length`. Weder `max_tokens 1024` noch
+`--repetition-penalty 1.1` aendern das — das Modell beendet in diesen
+Zuordnungsaufgaben nicht, eine Messoption kann das nicht reparieren. Der
+naechste Schritt ist ein neues Training (1 Epoche auf den jetzt 63 Saetzen),
+nicht eine weitere Messvariante.
+
 Drei lesbare Konsequenzen: (1) Code, Reasoning, strukturierte Ausgabe und
 Writing brauchen gezielte Trainingsdaten, nicht nur Umfang; (2) `max_tokens`
 muss fuer diese Faecke mindestens 1024 betragen; (3) die 0,847-Marke ist mit

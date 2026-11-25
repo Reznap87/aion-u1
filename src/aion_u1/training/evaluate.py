@@ -51,6 +51,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", default="reports/eval-model.json")
     parser.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
     parser.add_argument(
+        "--repetition-penalty",
+        type=float,
+        default=1.0,
+        help=">1 bricht Wiederholungsschleifen ab (z. B. 1.1)",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -84,7 +90,7 @@ def _laden(base_model: str, adapter: str | None, device: str):
     return modell, tokenizer
 
 
-def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseResult:
+def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path, repetition_penalty: float = 1.0) -> CaseResult:
     eingabe = build_case_input(case, root)
     if not isinstance(eingabe, str):
         return CaseResult(
@@ -110,6 +116,7 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
             **token,
             max_new_tokens=max_tokens,
             do_sample=False,
+            repetition_penalty=repetition_penalty,
             pad_token_id=tokenizer.eos_token_id,
         )
     latency = int((time.time() - start) * 1000)
@@ -153,7 +160,10 @@ def main(argv: list[str] | None = None) -> int:
           + (f" + Adapter {args.adapter}" if args.adapter else ""), file=sys.stderr)
     modell, tokenizer = _laden(args.base_model, args.adapter, args.device)
 
-    ergebnisse = [_ausfuehren(modell, tokenizer, case, args.max_tokens, root) for case in cases]
+    ergebnisse = [
+        _ausfuehren(modell, tokenizer, case, args.max_tokens, root, args.repetition_penalty)
+        for case in cases
+    ]
     scores = calculate_scores(ergebnisse, registry)
     score = scores.get("lokal")
 
@@ -166,6 +176,7 @@ def main(argv: list[str] | None = None) -> int:
         "suite": suite_path.stem,
         "suite_path": str(suite_path),
         "max_tokens": args.max_tokens,
+        "repetition_penalty": args.repetition_penalty,
         "results": [r.model_dump() for r in ergebnisse],
         "scores": {k: v.model_dump() for k, v in scores.items()},
         "provenance": collect_provenance(
