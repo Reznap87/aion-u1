@@ -150,6 +150,8 @@ class TeacherScore(BaseModel):
 
 class AuditReport(BaseModel):
     schema_version: str = "1.0"
+    index_version: Literal["1", "2"] = "1"
+    verifier_image: str | None = None
     generated_at: datetime
     suite: str
     suite_path: str
