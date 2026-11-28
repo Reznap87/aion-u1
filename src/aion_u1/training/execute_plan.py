@@ -18,6 +18,7 @@ from ..teachers.resolver import TeacherResolution
 from .compare import compare_reports
 from .generate import generate_one
 from .plan import plan_tasks
+from .run_ledger import RunLedger
 from .tasks import TaskBank, TaskSpec, load_task_bank
 
 
@@ -72,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("plan", "teacher", "student", "suite", "capabilities", "tasks", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--model", action="append", required=True, help="alias=provider/model:free")
+    parser.add_argument("--ledger", type=Path, help="Persistent SQLite ledger shared across all workers")
     parser.add_argument("--execute-free", action="store_true", help="Explicitly authorize free-only inference")
     args = parser.parse_args(argv)
     paths = {name: getattr(args, name) for name in ("teacher", "student", "suite", "capabilities", "tasks")}
@@ -99,6 +101,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.execute_free:
         print(json.dumps({"planned_requests": len(jobs), "executed": 0, "training_approved": False}))
         return 0
+    if args.ledger is None:
+        raise ValueError("Persistent execution ledger required")
+    if args.ledger.resolve() in {args.output.resolve(), args.plan.resolve(), *(path.resolve() for path in paths.values())}:
+        raise ValueError("Ledger must be separate from inputs and output")
     if not jobs:
         raise ValueError("No eligible jobs")
     key = os.getenv("AION_OPENROUTER_FREE_API_KEY", "")
@@ -111,7 +117,16 @@ def main(argv: list[str] | None = None) -> int:
     async def run() -> int:
         client = FreeOnlyClient(key)
         try:
-            return await execute_jobs(client, jobs, args.tasks.parent, args.output)
+            await client.require_zero_limit()
+            ledger = RunLedger(args.ledger)
+            identifier = ledger.reserve(expected)
+            try:
+                count = await execute_jobs(client, jobs, args.tasks.parent, args.output)
+            except BaseException:
+                ledger.finish(identifier, success=False)
+                raise
+            ledger.finish(identifier, success=True)
+            return count
         finally:
             await client.close()
 
