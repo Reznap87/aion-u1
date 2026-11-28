@@ -96,7 +96,7 @@ class FreeOnlyClient:
             raise TeacherError("Free variant unavailable or pricing not verified")
         payload = {
             "model": model_id, "messages": messages, "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": max_tokens, "usage": {"include": True},
             "provider": {"allow_fallbacks": False, "require_parameters": True,
                          "max_price": {"prompt": 0, "completion": 0}},
         }
@@ -109,6 +109,8 @@ class FreeOnlyClient:
         usage = data.get("usage")
         if not isinstance(usage, dict) or not _zero(usage.get("cost")):
             raise TeacherError("Missing or nonzero reported inference cost")
+        if usage.get("is_byok") is True:
+            raise TeacherError("BYOK inference is not permitted in free-only execution")
         choices = data.get("choices")
         if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
             raise TeacherError("Missing completion")
