@@ -13,7 +13,7 @@ data:
 
 model:
   base_model: Qwen/Qwen2.5-1.5B-Instruct
-  revision: main
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
   trust_remote_code: false
   dtype: float32
   attn_implementation: eager
