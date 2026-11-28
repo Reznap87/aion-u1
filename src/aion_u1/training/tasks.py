@@ -289,8 +289,8 @@ def run_python_tests(
 
             completed = subprocess.run(
                 command,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 timeout=verifier.timeout_seconds,
                 check=False,
             )
@@ -309,17 +309,10 @@ def run_python_tests(
                     method="python_code:docker", error=True,
                 )
 
-            details = (
-                completed.stdout + "\n" + completed.stderr
-            ).strip()
-
             return VerificationResult(
                 score=0.0,
                 passed=False,
-                reason=(
-                    "Python-Tests fehlgeschlagen: "
-                    + details[-1200:]
-                ),
+                reason="Python-Tests fehlgeschlagen.",
                 method="python_code:docker",
             )
 
@@ -345,7 +338,7 @@ def run_python_tests(
         return VerificationResult(
             score=0.0,
             passed=False,
-            reason=f"Docker konnte nicht gestartet werden: {exc}",
+            reason=f"Docker konnte nicht gestartet werden: {type(exc).__name__}",
             method="python_code:docker",
             error=True,
         )
