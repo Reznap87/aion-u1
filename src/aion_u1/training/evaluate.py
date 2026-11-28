@@ -69,19 +69,33 @@ def _laden(base_model: str, adapter: str | None, device: str, revision: str | No
 
     lade_device = {"cpu": "cpu", "cuda": "cuda", "auto": None}[device]
     revision_kwargs = {"revision": revision} if revision is not None else {}
-    tokenizer = AutoTokenizer.from_pretrained(base_model, **revision_kwargs)
-    kwargs = {"low_cpu_mem_usage": True, **revision_kwargs}
+    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=False, **revision_kwargs)
+    kwargs = {"low_cpu_mem_usage": True, "use_safetensors": True, "trust_remote_code": False, **revision_kwargs}
     if lade_device:
         kwargs["device_map"] = lade_device
     if torch.cuda.is_available() and (device == "cuda" or device == "auto"):
         kwargs["torch_dtype"] = torch.float16
     modell = AutoModelForCausalLM.from_pretrained(base_model, **kwargs)
+    if revision is not None and getattr(modell.config, "_commit_hash", None) != revision:
+        raise RuntimeError("Loaded evaluation model revision differs from requested revision")
+    if not tokenizer.chat_template:
+        raise ValueError("Evaluation requires an instruct-model chat template")
     if adapter:
         from peft import PeftModel
 
         modell = PeftModel.from_pretrained(modell, adapter)
     modell.eval()
     return modell, tokenizer
+
+
+def encode_chat_prompt(tokenizer, prompt: str):
+    if not tokenizer.chat_template:
+        raise ValueError("Evaluation requires an instruct-model chat template")
+    rendered = tokenizer.apply_chat_template(
+        [{"role": "user", "content": prompt}],
+        tokenize=False, add_generation_prompt=True,
+    )
+    return tokenizer(rendered, return_tensors="pt", add_special_tokens=False)
 
 
 def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseResult:
@@ -103,7 +117,7 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
         )
     import torch
 
-    token = tokenizer(eingabe, return_tensors="pt")
+    token = encode_chat_prompt(tokenizer, eingabe)
     token = {schluessel: wert.to(modell.device) for schluessel, wert in token.items()}
     start = time.time()
     with torch.no_grad():
@@ -169,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         **evaluation_metadata(cases),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "kind": "local_model_evaluation",
+        "prompt_format": "chat_template_v1",
         "base_model": args.base_model,
         "model_identity": identity,
         "adapter": args.adapter,
