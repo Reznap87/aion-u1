@@ -12,6 +12,7 @@ from ..capabilities import CapabilityRegistry
 from ..cli import load_cases
 from ..models import AuditCase, CaseResult
 from ..provenance import sha256_file
+from .model_identity import validate_identity
 
 
 def _provenance(report: dict[str, Any], key: str) -> str:
@@ -95,6 +96,7 @@ def compare_reports(
     student_alias, student_rows = next(iter(students.items()))
     if set(student_rows) != set(by_id) or any(set(rows) != set(by_id) for rows in teachers.values()):
         raise ValueError("Report case sets must equal the entire suite")
+    identity = validate_identity(student.get("model_identity"), student.get("base_model"), student.get("adapter"))
     token_budget = student.get("max_tokens")
     if type(token_budget) is not int or token_budget <= 0:
         raise ValueError("Student token budget required")
@@ -135,7 +137,7 @@ def compare_reports(
         "student_adapter": student.get("adapter"),
         "target_ratio": 0.95,
         "max_tokens": token_budget,
-        "student_model_identity": student.get("model_identity"),
+        "student_model_identity": identity,
         "capabilities": output,
         "all_targets_met": all(row["status"] == "target_met" for row in output),
     }
