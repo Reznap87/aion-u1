@@ -328,6 +328,14 @@ def verify_response(
 ) -> VerificationResult:
     text = response.strip()
 
+    if not text:
+        return VerificationResult(
+            score=0.0,
+            passed=False,
+            reason="Leere Antwort erfüllt keinen Verifier",
+            method=verifier.type,
+        )
+
     if verifier.type == "python_code":
         return run_python_tests(text, verifier)
 
