@@ -38,6 +38,8 @@ aion-u1-generate-candidates = "aion_u1.training.generate:main"
 aion-u1-rank-candidates = "aion_u1.training.rank:main"
 aion-u1-evaluate-model = "aion_u1.training.evaluate:main"
 aion-u1-compare = "aion_u1.training.compare:main"
+aion-u1-plan = "aion_u1.training.plan:main"
+aion-u1-execute-plan = "aion_u1.training.execute_plan:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aion_u1"]
