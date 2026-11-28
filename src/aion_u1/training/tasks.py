@@ -13,6 +13,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..media import multimodal_content
+from ..verifiers import score_text
 
 
 class TaskVerifier(BaseModel):
@@ -33,6 +34,7 @@ class TaskVerifier(BaseModel):
     timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     docker_image: str = "python:3.12-slim"
     pull_image: bool = False
+    engine: Literal["legacy", "v2"] = "legacy"
 
     @model_validator(mode="after")
     def validate_arguments(self) -> "TaskVerifier":
@@ -330,6 +332,16 @@ def verify_response(
 
     if verifier.type == "python_code":
         return run_python_tests(text, verifier)
+
+    if verifier.engine == "v2":
+        result = score_text(
+            text, kind=verifier.type, values=verifier.values,
+            expected=verifier.expected,
+            case_insensitive=verifier.type == "regex",
+        )
+        if result.error or result.score is None:
+            return VerificationResult(0.0, False, result.reason, result.method, True)
+        return VerificationResult(result.score, result.passed, result.reason, result.method)
 
     if verifier.type == "contains_all":
         missing = [
