@@ -30,6 +30,7 @@ from aion_u1.audit import (  # noqa: E402
     build_case_input,
     calculate_scores,
     verify_response,
+    evaluation_metadata,
 )
 from aion_u1.capabilities import CapabilityRegistry  # noqa: E402
 from aion_u1.cli import load_cases, repository_root  # noqa: E402
@@ -157,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = {
         "schema_version": 1,
+        **evaluation_metadata(cases),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "kind": "local_model_evaluation",
         "base_model": args.base_model,
