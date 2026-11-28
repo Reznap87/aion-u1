@@ -40,7 +40,9 @@ capabilities:
     teacher = {"requested_max_tokens": 1024, "index_version": "1", "provenance": copy.deepcopy(provenance),
                "results": [row("teacher", "code.one", "code.synthesis", "answer", 1),
                            row("teacher", "math.one", "reasoning.logical", "calculate", 0.8)]}
-    student = {"max_tokens": 1024, "index_version": "1", "provenance": copy.deepcopy(provenance),
+    student = {"base_model": "example/student", "adapter": None,
+               "model_identity": {"base": {"kind": "hub", "repo_id": "example/student", "revision": "c" * 40}, "adapter": None},
+               "max_tokens": 1024, "index_version": "1", "provenance": copy.deepcopy(provenance),
                "results": [row("student", "code.one", "code.synthesis", "answer", 0.5),
                            row("student", "math.one", "reasoning.logical", "calculate", 0.8)]}
     return teacher, student, suite, capabilities
@@ -102,3 +104,17 @@ def test_reduced_effective_budget_is_unmeasured(reports):
                if r["capability"] == "code.synthesis")
     assert row["best_teacher_score"] is None
     assert row["status"] == "unmeasured"
+
+
+def test_unpinned_student_rejected(reports):
+    teacher, student, *_ = reports
+    student["model_identity"]["base"] = {"kind": "unpinned", "repo_id": "example/student"}
+    with pytest.raises(ValueError, match="immutable identity"):
+        compare_reports(*reports)
+
+
+def test_missing_adapter_identity_rejected(reports):
+    teacher, student, *_ = reports
+    student["adapter"] = "adapter"
+    with pytest.raises(ValueError, match="adapter identity"):
+        compare_reports(*reports)
