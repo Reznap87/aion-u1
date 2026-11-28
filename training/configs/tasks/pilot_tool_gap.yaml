@@ -1,0 +1,51 @@
+version: 1
+
+# Gezielte Lücke aus dem Offline-Preflight: agent.tool_use hat 0 Trainings-
+# saetze, obwohl die Eval-Suite zwei Faelle dafuer enthaelt. Prompts sind
+# neu gegenueber benchmark_hard_text_v1 und allen bestehenden Banks.
+tasks:
+  - id: gap.tool.select_archive
+    capability: agent.tool_use
+    prompt: |
+      Werkzeuge:
+      - archivieren(path): legt eine Datei in ein Archiv ab.
+      - zusammenfassen(path): liefert eine kurze Inhaltsangabe.
+      - umbenennen(path, name): aendert den Dateinamen.
+
+      Aufgabe: Eine vorhandene Datei soll einen neuen Namen bekommen und
+      danach archiviert werden. Welches Werkzeug ist ZUERST noetig?
+      Antworte nur als JSON mit dem Schluessel `tool` (genauer Werkzeugname).
+    verifier:
+      type: json_equals
+      expected:
+        tool: umbenennen
+    teacher_aliases: &lehrer
+      - qwen3_coder_next
+      - qwen3_235b
+      - gemma_4_31b
+      - granite_4_2_8b
+      - phi_4
+      - nemotron_3_5_lightning
+      - nemotron_3_ultra
+      - deepseek_r1
+    samples_per_teacher: 1
+    temperature: 0.1
+
+  - id: gap.tool.missing_info
+    capability: agent.tool_use
+    prompt: |
+      Werkzeuge:
+      - suchen(begriff): findet Eintraege zu einem Begriff.
+      - uebersetzen(text, zielsprache): uebersetzt einen Text.
+      - speichern(text): speichert einen Text dauerhaft.
+
+      Aufgabe: Du sollst einen fremdsprachigen Satz speichern, verstehst
+      ihn aber nicht. Welches Werkzeug ist ZUERST noetig?
+      Antworte nur als JSON mit dem Schluessel `tool` (genauer Werkzeugname).
+    verifier:
+      type: json_equals
+      expected:
+        tool: uebersetzen
+    teacher_aliases: *lehrer
+    samples_per_teacher: 1
+    temperature: 0.1
