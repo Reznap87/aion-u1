@@ -46,13 +46,15 @@ def _groups(report: dict[str, Any], cases: dict[str, AuditCase]):
     return groups
 
 
-def _score(rows: dict[str, CaseResult], ids: list[str]) -> float | None:
+def _score(rows: dict[str, CaseResult], ids: list[str], token_budget: int) -> float | None:
     values = []
     if not ids:
         return None
     for case_id in ids:
         row = rows.get(case_id)
         if row is None or row.error is not None or row.finish_reason == "length" or row.score is None:
+            return None
+        if row.max_tokens != token_budget:
             return None
         values.append(row.score)
     return sum(values) / len(values)
@@ -93,13 +95,18 @@ def compare_reports(
     student_alias, student_rows = next(iter(students.items()))
     if set(student_rows) != set(by_id) or any(set(rows) != set(by_id) for rows in teachers.values()):
         raise ValueError("Report case sets must equal the entire suite")
+    token_budget = student.get("max_tokens")
+    if type(token_budget) is not int or token_budget <= 0:
+        raise ValueError("Student token budget required")
+    if teacher.get("requested_max_tokens") != token_budget:
+        raise ValueError("Requested token budgets differ or are missing")
     output = []
     for spec in registry.list():
         ids = [case.id for case in cases if case.capability == spec.id]
-        scores = {alias: _score(rows, ids) for alias, rows in teachers.items()}
+        scores = {alias: _score(rows, ids, token_budget) for alias, rows in teachers.items()}
         measured = [(score, alias) for alias, score in scores.items() if score is not None]
         best, best_alias = max(measured) if measured else (None, None)
-        current = _score(student_rows, ids)
+        current = _score(student_rows, ids, token_budget)
         target = 0.95 * best if best is not None and best > 0 else None
         deficit = max(0.0, target - current) if target is not None and current is not None else None
         output.append({
@@ -127,6 +134,8 @@ def compare_reports(
         "student_base_model": student.get("base_model"),
         "student_adapter": student.get("adapter"),
         "target_ratio": 0.95,
+        "max_tokens": token_budget,
+        "student_model_identity": student.get("model_identity"),
         "capabilities": output,
         "all_targets_met": all(row["status"] == "target_met" for row in output),
     }
