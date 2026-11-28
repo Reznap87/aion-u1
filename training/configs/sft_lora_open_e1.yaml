@@ -1,28 +1,57 @@
-# Ziel: Endlosschleifen abstellen. Der v3-Lauf (3 Epochen, 58 Saetze) hatte
-# 12/24 korrekt, aber 3 length-Abbrueche; der Nachlauf mit derselben Config auf
-# 63 Saetzen hatte nur 10/24 und 9 length-Abbrueche. Beide trainierten 3
-# Epochen — die Hypothese „1 Epoche bricht das Overfitting" ist damit noch
-# nicht geprueft. Diese Config testet genau sie.
+run:
+  name: aion-u1-sft-pilot-open-e1
+  output_dir: artifacts/sft/pilot_open_e1
+  seed: 20251027
+  resume_from_checkpoint: null
+  overwrite_output_dir: false
 
-base_model: Qwen/Qwen2.5-1.5B-Instruct
-train_file: data/verified/pilot_open_train.jsonl
-eval_file: data/verified/pilot_open_eval.jsonl
-output_dir: artifacts/sft/pilot_open_e1
+data:
+  train_path: data/verified/pilot_open_train.jsonl
+  eval_path: data/verified/pilot_open_eval.jsonl
+  max_seq_length: 2048
+  require_training_approval: true
 
-num_train_epochs: 1.0
-per_device_train_batch_size: 2
-per_device_eval_batch_size: 2
-gradient_accumulation_steps: 4
-learning_rate: 0.0001
-warmup_ratio: 0.05
-lr_scheduler_type: cosine
-weight_decay: 0.0
-max_grad_norm: 1.0
-logging_steps: 1
-save_strategy: epoch
-eval_strategy: epoch
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: main
+  trust_remote_code: false
+  dtype: auto
+  attn_implementation: eager
+  license_acknowledged: true
 
-fp16: false
-bf16: false
-load_best_model_at_end: false
-seed: 42
+peft:
+  enabled: true
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  merge_and_save: false
+
+# Gegen die Endlosschleifen: nur 1 Epoche statt 3, sonst identisch mit v3.
+training:
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  warmup_ratio: 0.05
+  lr_scheduler_type: cosine
+  max_grad_norm: 1.0
+  optim: adamw_torch
+  logging_steps: 1
+  save_strategy: epoch
+  save_total_limit: 2
+  load_best_model_at_end: false
+  gradient_checkpointing: true
+  bf16: false
+  fp16: false
+  tf32: false
+  full_determinism: false
