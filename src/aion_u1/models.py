@@ -41,6 +41,7 @@ class VerifierSpec(BaseModel):
 
     type: Literal[
         "contains_all",
+        "contains_any",
         "not_contains",
         "regex",
         "exact_match",
@@ -48,14 +49,22 @@ class VerifierSpec(BaseModel):
     ]
     values: list[str] = Field(default_factory=list)
     expected: Any = None
+    case_insensitive: bool = True
+    partial: bool = False
+    pass_threshold: float = Field(default=1.0, gt=0, le=1)
+    engine: Literal["legacy", "v2"] = "legacy"
 
     @model_validator(mode="after")
     def validate_arguments(self) -> "VerifierSpec":
-        if self.type in {"contains_all", "not_contains", "regex"}:
+        if self.type in {"contains_all", "contains_any", "not_contains", "regex", "exact_match"}:
             if not self.values:
                 raise ValueError(f"Verifier {self.type} benötigt values")
         if self.type == "json_equals" and self.expected is None:
             raise ValueError("json_equals benötigt expected")
+        if self.partial and self.type != "contains_all":
+            raise ValueError("Partial scoring requires contains_all")
+        if self.engine == "legacy" and (self.partial or not self.case_insensitive or self.pass_threshold != 1.0 or self.type == "contains_any"):
+            raise ValueError("New scoring options require engine=v2")
         return self
 
 
