@@ -36,6 +36,7 @@ from aion_u1.capabilities import CapabilityRegistry  # noqa: E402
 from aion_u1.cli import load_cases, repository_root  # noqa: E402
 from aion_u1.models import CaseResult  # noqa: E402
 from aion_u1.provenance import collect as collect_provenance  # noqa: E402
+from aion_u1.training.model_identity import model_identity  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -44,6 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Evaluiert ein lokales Modell auf der Capability-Suite.",
     )
     parser.add_argument("--base-model", required=True)
+    parser.add_argument("--revision", default=None, help="Full Hub commit SHA for reproducible evaluation")
     parser.add_argument("--adapter", default=None, help="LoRA-Adapter-Verzeichnis")
     parser.add_argument(
         "--suite",
@@ -61,13 +63,14 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _laden(base_model: str, adapter: str | None, device: str):
+def _laden(base_model: str, adapter: str | None, device: str, revision: str | None = None):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     lade_device = {"cpu": "cpu", "cuda": "cuda", "auto": None}[device]
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
-    kwargs = {"low_cpu_mem_usage": True}
+    revision_kwargs = {"revision": revision} if revision is not None else {}
+    tokenizer = AutoTokenizer.from_pretrained(base_model, **revision_kwargs)
+    kwargs = {"low_cpu_mem_usage": True, **revision_kwargs}
     if lade_device:
         kwargs["device_map"] = lade_device
     if torch.cuda.is_available() and (device == "cuda" or device == "auto"):
@@ -96,6 +99,7 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
             verifier_type=case.verifier.type,
             error="Multimodale Faelle werden lokal noch nicht ausgefuehrt",
             latency_ms=0,
+            max_tokens=max_tokens,
         )
     import torch
 
@@ -125,6 +129,7 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
         error=verification.reason if verification.error else None,
         verifier_type=case.verifier.type,
         latency_ms=latency,
+        max_tokens=max_tokens,
         finish_reason="length" if truncated else "stop",
     )
 
@@ -150,9 +155,12 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Evaluiere {len(cases)} Faelle mit {args.base_model}"
           + (f" + Adapter {args.adapter}" if args.adapter else ""), file=sys.stderr)
-    modell, tokenizer = _laden(args.base_model, args.adapter, args.device)
+    identity = model_identity(args.base_model, args.revision, args.adapter)
+    modell, tokenizer = _laden(args.base_model, args.adapter, args.device, args.revision)
 
     ergebnisse = [_ausfuehren(modell, tokenizer, case, args.max_tokens, root) for case in cases]
+    if model_identity(args.base_model, args.revision, args.adapter) != identity:
+        raise RuntimeError("Model artifacts changed during evaluation")
     scores = calculate_scores(ergebnisse, registry)
     score = scores.get("lokal")
 
@@ -162,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "kind": "local_model_evaluation",
         "base_model": args.base_model,
+        "model_identity": identity,
         "adapter": args.adapter,
         "suite": suite_path.stem,
         "suite_path": str(suite_path),
