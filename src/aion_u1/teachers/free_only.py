@@ -65,6 +65,20 @@ class FreeOnlyClient:
         response.raise_for_status()
         return sorted(free_model_ids(response.json()))
 
+    async def require_zero_limit(self) -> None:
+        """Never log key metadata; absence or ambiguity denies admission."""
+        response = await self._client.get("key")
+        response.raise_for_status()
+        payload = response.json()
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if (not isinstance(data, dict)
+                or not _zero(data.get("limit"))
+                or not _zero(data.get("limit_remaining"))
+                or data.get("is_management_key") is not False
+                or data.get("is_provisioning_key") is not False
+                or data.get("include_byok_in_limit") is not True):
+            raise TeacherError("Dedicated non-management key with explicit zero limit including BYOK required")
+
     async def generate(self, model_id: str, messages: list[dict[str, object]], *,
                        temperature: float = 0.0, max_tokens: int | None = None) -> TeacherResponse:
         if not re.fullmatch(MODEL_PATTERN, model_id):
@@ -76,6 +90,7 @@ class FreeOnlyClient:
                                or not isinstance(message["content"], str)
                                for message in messages):
             raise TeacherError("Free-only path supports plain user text only")
+        await self.require_zero_limit()
         # Recheck catalog pricing immediately before each inference request.
         if model_id not in await self.list_models():
             raise TeacherError("Free variant unavailable or pricing not verified")
