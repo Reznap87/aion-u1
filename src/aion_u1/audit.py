@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .verifiers import VerificationResult, score_text
 from .capabilities import CapabilityRegistry
 from .media import multimodal_content
 from .teachers.openrouter import DEFAULT_MAX_TOKENS
@@ -51,7 +52,7 @@ def _extract_json(text: str) -> Any:
     return json.loads(stripped[start : end + 1])
 
 
-def score_response(
+def _legacy_score_response(
     response: str,
     verifier: VerifierSpec,
 ) -> tuple[float, str]:
@@ -107,6 +108,24 @@ def score_response(
     return 0.0, "Unbekannter Verifier"
 
 
+def verify_response(response: str, verifier: VerifierSpec) -> VerificationResult:
+    if verifier.engine == "legacy":
+        score, reason = _legacy_score_response(response, verifier)
+        return VerificationResult(score, score == 1.0, reason, verifier.type)
+    return score_text(
+        response, kind=verifier.type, values=verifier.values,
+        expected=verifier.expected, case_insensitive=verifier.case_insensitive,
+        partial=verifier.partial, pass_threshold=verifier.pass_threshold,
+    )
+
+
+def score_response(response: str, verifier: VerifierSpec) -> tuple[float, str]:
+    result = verify_response(response, verifier)
+    if result.error or result.score is None:
+        raise RuntimeError(result.reason)
+    return result.score, result.reason
+
+
 def build_case_input(
     case: AuditCase,
     root: Path | None = None,
@@ -146,7 +165,7 @@ async def _run_case(
                 temperature=0,
                 max_tokens=max_tokens,
             )
-            score, _reason = score_response(
+            verification = verify_response(
                 response.content,
                 case.verifier,
             )
@@ -158,8 +177,9 @@ async def _run_case(
                 capability=case.capability,
                 prompt=case.prompt,
                 response=response.content,
-                score=score,
-                passed=score == 1.0,
+                score=verification.score,
+                passed=verification.passed and response.finish_reason != "length",
+                error=verification.reason if verification.error else None,
                 verifier_type=case.verifier.type,
                 latency_ms=response.latency_ms,
                 finish_reason=response.finish_reason,
