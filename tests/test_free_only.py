@@ -55,6 +55,7 @@ def test_request_has_zero_price_and_no_fallback():
         assert payload["provider"]["max_price"] == {"prompt": 0, "completion": 0}
         assert payload["provider"]["allow_fallbacks"] is False
         assert "models" not in payload
+        assert payload["usage"] == {"include": True}
         return httpx.Response(200, json={"model": MODEL, "usage": {"cost": 0},
             "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]})
     assert run(handler).content == "ok"
@@ -96,3 +97,13 @@ def test_unrestricted_or_ambiguous_key_is_rejected(key_info):
         pytest.fail("Catalog or inference request must not be sent")
     with pytest.raises(TeacherError, match="zero limit"):
         run(handler, key_info=key_info)
+
+
+def test_reported_byok_rejected():
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": [{"id": MODEL, "pricing": FREE}]})
+        return httpx.Response(200, json={"model": MODEL, "usage": {"cost": 0, "is_byok": True},
+            "choices": [{"message": {"content": "ok"}}]})
+    with pytest.raises(TeacherError, match="BYOK"):
+        run(handler)
