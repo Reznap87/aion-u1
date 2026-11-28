@@ -70,11 +70,20 @@ def _inspect(rows: list[dict[str, Any]], known: set[str], benchmark_prompts: set
 
 
 def check(config: SFTConfig, root: Path, suite: Path, capability_path: Path) -> dict:
-    registry = CapabilityRegistry.load(capability_path)
-    known = {spec.id for spec in registry.list()}
-    benchmark = {_key(case.prompt) for case in load_cases(suite)}
     train_path = root / config.data.train_path
     eval_path = root / config.data.eval_path if config.data.eval_path else None
+    paths = {"train": train_path, "eval": eval_path, "suite": suite, "capabilities": capability_path}
+    hashes = {name: sha256_file(path) if path else None for name, path in paths.items()}
+    if any(hashes[name] is None for name in ("train", "suite", "capabilities")) or (eval_path and hashes["eval"] is None):
+        raise ValueError("Preflight input is unreadable")
+    registry = CapabilityRegistry.load(capability_path)
+    known = {spec.id for spec in registry.list()}
+    cases = load_cases(suite)
+    if not cases or len({case.id for case in cases}) != len(cases):
+        raise ValueError("Benchmark suite is empty or has duplicate case IDs")
+    for case in cases:
+        registry.get(case.capability)
+    benchmark = {_key(case.prompt) for case in cases}
     train = _inspect(read_jsonl(train_path), known, benchmark)
     evaluation = _inspect(read_jsonl(eval_path) if eval_path else [], known, benchmark)
     blockers = []
@@ -101,6 +110,8 @@ def check(config: SFTConfig, root: Path, suite: Path, capability_path: Path) -> 
         blockers.append("output_not_empty")
     if config.run.overwrite_output_dir or config.run.resume_from_checkpoint:
         blockers.append("fresh_run_required")
+    if hashes != {name: sha256_file(path) if path else None for name, path in paths.items()}:
+        raise RuntimeError("Preflight inputs changed during validation")
     for split in (train, evaluation):
         for field in ("ids", "groups", "prompts"):
             del split[field]
@@ -110,8 +121,7 @@ def check(config: SFTConfig, root: Path, suite: Path, capability_path: Path) -> 
         "train": train, "eval": evaluation, "split_overlap": overlaps,
         "uncovered_train_capabilities": sorted(known - set(train["capability_counts"])),
         "uncovered_eval_capabilities": sorted(known - set(evaluation["capability_counts"])),
-        "hashes": {"train": sha256_file(train_path), "eval": sha256_file(eval_path) if eval_path else None,
-                   "suite": sha256_file(suite), "capabilities": sha256_file(capability_path)},
+        "hashes": hashes,
         "training_started": False,
     }
 
