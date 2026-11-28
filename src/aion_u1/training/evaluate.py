@@ -96,6 +96,7 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
             verifier_type=case.verifier.type,
             error="Multimodale Faelle werden lokal noch nicht ausgefuehrt",
             latency_ms=0,
+            max_tokens=max_tokens,
         )
     import torch
 
@@ -125,6 +126,7 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
         error=verification.reason if verification.error else None,
         verifier_type=case.verifier.type,
         latency_ms=latency,
+        max_tokens=max_tokens,
         finish_reason="length" if truncated else "stop",
     )
 
