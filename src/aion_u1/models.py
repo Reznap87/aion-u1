@@ -151,6 +151,7 @@ class TeacherScore(BaseModel):
 class AuditReport(BaseModel):
     schema_version: str = "1.0"
     index_version: Literal["1", "2"] = "1"
+    requested_max_tokens: int | None = Field(default=None, gt=0)
     verifier_image: str | None = None
     generated_at: datetime
     suite: str
