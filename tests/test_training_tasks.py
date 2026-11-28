@@ -10,6 +10,16 @@ from aion_u1.training.tasks import (
 )
 
 
+def test_leere_antwort_wird_abgelehnt() -> None:
+    verifier = TaskVerifier(type="not_contains", values=["verboten"])
+
+    result = verify_response("   ", verifier)
+
+    assert result.score == 0.0
+    assert result.passed is False
+    assert "Leer" in result.reason
+
+
 def test_pilot_task_bank_is_valid() -> None:
     root = find_project_root()
 

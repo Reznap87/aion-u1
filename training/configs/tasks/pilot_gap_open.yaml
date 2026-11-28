@@ -1,0 +1,140 @@
+version: 1
+tasks:
+- id: gap.code.range_bound
+  capability: code.synthesis
+  prompt: "Die Funktion soll pruefen, ob eine Liste aufsteigend sortiert ist:\n\n\
+    \    def aufsteigend(xs):\n        for i in range(len(xs)):\n            if xs[i]\
+    \ > xs[i + 1]:\n                return False\n    return True\n\nWelcher Ausdruck\
+    \ muss `range(len(xs))` ersetzen, damit kein Indexfehler\nmehr auftritt? Antworte\
+    \ nur mit diesem Ausdruck.\n"
+  verifier:
+    type: exact_match
+    values:
+    - range(len(xs) - 1)
+  teacher_aliases: &id001
+  - qwen3_coder_next
+  - qwen3_235b
+  - gemma_4_31b
+  - granite_4_2_8b
+  - phi_4
+  - nemotron_3_5_lightning
+  - nemotron_3_ultra
+  - deepseek_r1
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.code.unique_order
+  capability: code.synthesis
+  prompt: 'Schreibe eine Python-Funktion `unique_in_order(items)`, die Duplikate
+
+    entfernt und die Reihenfolge des ersten Vorkommens beibehaelt.
+
+    Gib nur den Code aus.
+
+    '
+  verifier:
+    type: python_code
+    timeout_seconds: 20
+    test_code: "import unittest\nimport solution\n\nclass UniqueTests(unittest.TestCase):\n\
+      \    def test_order(self):\n        self.assertEqual(solution.unique_in_order([3,\
+      \ 1, 3, 2, 1]), [3, 1, 2])\n\nunittest.main()\n"
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.reasoning.table_difference
+  capability: reasoning.logical
+  prompt: 'Ein Team hatte 2021 insgesamt 24 Mitglieder, 2023 waren es 31 und
+
+    2025 waren es 40. Um wie viele Mitglieder ist die Zahl von 2021 auf
+
+    2025 gestiegen? Antworte nur als JSON mit dem Schluessel
+
+    `differenz` (Zahl).
+
+    '
+  verifier:
+    type: json_equals
+    expected:
+      differenz: 16
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.reasoning.syllogism
+  capability: reasoning.logical
+  prompt: 'Alle A sind B. Manche B sind C. Ist daraus zwingend ableitbar, dass
+
+    manche A C sind? Antworte nur als JSON mit dem Schluessel
+
+    `zwingend` (ja oder nein).
+
+    '
+  verifier:
+    type: json_equals
+    expected:
+      zwingend: nein
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.instruction.case_exact
+  capability: instruction.structured_output
+  prompt: 'Gib ausschliesslich JSON aus mit den Feldern: titel (Wert NuMBer),
+
+    anzahl (Zahl 3), tags (die Werte zeta und alpha, alphabetisch
+
+    sortiert). Kein Text davor oder danach.
+
+    '
+  verifier:
+    type: json_equals
+    expected:
+      titel: NuMBer
+      anzahl: 3
+      tags:
+      - alpha
+      - zeta
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.instruction.only_json
+  capability: instruction.structured_output
+  prompt: 'Gib ausschliesslich ein JSON-Objekt aus mit genau einem Schluessel
+
+    `freigabe` und dem Wert `nein`. Keine Erklaerung, kein Markdown.
+
+    '
+  verifier:
+    type: json_equals
+    expected:
+      freigabe: nein
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.writing.forbidden_word
+  capability: writing.quality
+  prompt: 'Schreibe einen Satz ueber Backups, der die Woerter "sicherung" und
+
+    "kopie" enthaelt, aber nie das Wort "unmoeglich". Gib nur den Satz aus.
+
+    '
+  verifier:
+    type: not_contains
+    values:
+    - unmöglich
+    - unmoeglich
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1
+- id: gap.writing.two_sentences
+  capability: writing.quality
+  prompt: 'Schreibe genau zwei Saetze ueber Tests. Der erste Satz beginnt mit
+
+    "Tests", der zweite mit "Dennoch". Gib nur die zwei Saetze aus.
+
+    '
+  verifier:
+    type: contains_all
+    values:
+    - Tests
+    - Dennoch
+  teacher_aliases: *id001
+  samples_per_teacher: 1
+  temperature: 0.1

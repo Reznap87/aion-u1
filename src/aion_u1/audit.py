@@ -60,6 +60,9 @@ def _legacy_score_response(
 ) -> tuple[float, str]:
     text = response.strip()
 
+    if not text:
+        return 0.0, "Leere Antwort erfüllt keinen Verifier"
+
     if verifier.type == "contains_all":
         kleiner = text.lower()
         missing = [value for value in verifier.values if value.lower() not in kleiner]

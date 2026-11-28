@@ -52,6 +52,15 @@ def test_json_equals() -> None:
     assert score == 1.0
 
 
+def test_leere_antwort_besteht_keinen_verifier() -> None:
+    verifier = VerifierSpec(type="not_contains", values=["verboten"])
+
+    score, reason = score_response("   ", verifier)
+
+    assert score == 0.0
+    assert "Leer" in reason
+
+
 def test_not_contains() -> None:
     verifier = VerifierSpec(
         type="not_contains",
