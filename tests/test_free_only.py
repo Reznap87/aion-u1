@@ -24,12 +24,20 @@ def test_duplicate_model_catalog_entry_rejected():
     assert not free_model_ids({"data": [{"id": MODEL, "pricing": FREE}] * 2})
 
 
-def run(handler, model=MODEL):
+ZERO_KEY = {"limit": 0, "limit_remaining": 0, "is_management_key": False,
+            "is_provisioning_key": False, "include_byok_in_limit": True}
+
+
+def run(handler, model=MODEL, key_info=ZERO_KEY):
+    def dispatch(request):
+        if request.url.path.endswith("/key"):
+            return httpx.Response(200, json={"data": key_info})
+        return handler(request)
     async def invoke():
         client = FreeOnlyClient("test-key")
         await client.close()
         client._client = httpx.AsyncClient(base_url="https://openrouter.ai/api/v1/",
-                                           transport=httpx.MockTransport(handler))
+                                           transport=httpx.MockTransport(dispatch))
         try:
             return await client.generate(model, [{"role": "user", "content": "test"}], max_tokens=32)
         finally:
@@ -76,3 +84,15 @@ def test_reject_unverified_reported_cost(cost):
             "choices": [{"message": {"content": "ok"}}]})
     with pytest.raises(TeacherError):
         run(handler)
+
+
+@pytest.mark.parametrize("key_info", [
+    {}, dict(ZERO_KEY, limit=None), dict(ZERO_KEY, limit=1),
+    dict(ZERO_KEY, limit_remaining=1), dict(ZERO_KEY, include_byok_in_limit=False),
+    dict(ZERO_KEY, is_management_key=True), dict(ZERO_KEY, is_provisioning_key=True),
+])
+def test_unrestricted_or_ambiguous_key_is_rejected(key_info):
+    def handler(request):
+        pytest.fail("Catalog or inference request must not be sent")
+    with pytest.raises(TeacherError, match="zero limit"):
+        run(handler, key_info=key_info)
