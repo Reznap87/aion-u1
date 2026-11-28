@@ -56,6 +56,13 @@ jobs:
               print(f"{path.name}: ok")
           PY
 
+      - name: Validate real pilot training readiness (offline)
+        run: |
+          aion-u1-preflight \
+            --config training/configs/sft_lora_open_v4.yaml \
+            --suite evaluations/capability_suite/benchmark_hard_v2.yaml \
+            --capabilities configs/capabilities.yaml
+
   catalog:
     # Teacher-IDs live gegen den Provider-Katalog pruefen. Der Katalog ist
     # oeffentlich; ein Platzhalter-Key genuegt, weil nur /api/v1/models

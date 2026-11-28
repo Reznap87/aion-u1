@@ -12,6 +12,10 @@ from typing import Any
 
 import yaml
 
+from .preflight import check as check_preflight
+from .model_identity import model_identity
+from ..provenance import sha256_file
+
 from .config import (
     SFTConfig,
     find_project_root,
@@ -324,7 +328,15 @@ def _validate_rows(
 
 def run_sft(
     config: SFTConfig,
+    *,
+    suite: Path | None = None,
 ) -> Path:
+    root = find_project_root()
+    suite_path = root / (suite or Path("evaluations/capability_suite/benchmark_hard_v2.yaml"))
+    capability_path = root / "configs" / "capabilities.yaml"
+    preflight = check_preflight(config, root, suite_path, capability_path)
+    if not preflight["ready"]:
+        raise TrainingDataError("SFT preflight blocked: " + ", ".join(preflight["blockers"]))
     try:
         import torch
         from peft import (
@@ -341,7 +353,6 @@ def run_sft(
     except ImportError as exc:
         raise _dependency_error() from exc
 
-    root = find_project_root()
     output_dir = root / config.run.output_dir
     train_path = root / config.data.train_path
 
@@ -403,6 +414,14 @@ def run_sft(
             ),
         )
 
+    def require_unchanged_inputs():
+        paths = {"train": train_path, "eval": eval_path,
+                 "suite": suite_path, "capabilities": capability_path}
+        hashes = {name: sha256_file(path) if path else None for name, path in paths.items()}
+        if hashes != preflight["hashes"]:
+            raise TrainingDataError("SFT inputs changed after preflight")
+
+    require_unchanged_inputs()
     os.environ.setdefault(
         "TOKENIZERS_PARALLELISM",
         "false",
@@ -464,6 +483,7 @@ def run_sft(
             config.model.trust_remote_code
         ),
         "low_cpu_mem_usage": True,
+        "use_safetensors": True,
         "attn_implementation": (
             config.model.attn_implementation
         ),
@@ -487,6 +507,14 @@ def run_sft(
         "_commit_hash",
         None,
     )
+
+    base_identity = preflight["model_identity"]["base"]
+    if base_identity["kind"] == "hub" and resolved_revision != base_identity["revision"]:
+        raise TrainingDataError("Loaded model revision differs from preflight")
+    if base_identity["kind"] == "local":
+        if model_identity(config.model.base_model, None, None) != preflight["model_identity"]:
+            raise TrainingDataError("Local model artifact changed after preflight")
+    require_unchanged_inputs()
 
     if config.peft.enabled:
         if not config.peft.target_modules:
@@ -720,10 +748,16 @@ def run_sft(
 
         return batch
 
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    require_unchanged_inputs()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if any(output_dir.iterdir()):
+        raise TrainingDataError("Output directory became nonempty during preflight")
+    # Exclusive creation prevents concurrent workers from using the same output.
+    try:
+        with (output_dir / ".sft-reserved").open("x", encoding="utf-8") as reservation:
+            reservation.write("reserved\n")
+    except FileExistsError as exc:
+        raise TrainingDataError("SFT output already reserved") from exc
 
     effective_config = config.model_dump(
         mode="json"
@@ -744,6 +778,7 @@ def run_sft(
 
     manifest: dict[str, Any] = {
         "status": "running",
+        "preflight": preflight,
         "config": effective_config,
         "git_commit": _git_commit(root),
         "package_versions": _package_versions(),
@@ -1003,6 +1038,9 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    parser.add_argument("--suite", type=Path,
+                        default=Path("evaluations/capability_suite/benchmark_hard_v2.yaml"),
+                        help="Benchmark suite excluded from SFT data")
     return parser
 
 
@@ -1017,7 +1055,7 @@ def main(
         ).expanduser().resolve()
 
         config = load_sft_config(config_path)
-        run_sft(config)
+        run_sft(config, suite=args.suite)
 
         return 0
 
