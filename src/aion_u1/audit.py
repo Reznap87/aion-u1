@@ -135,6 +135,17 @@ def score_response(response: str, verifier: VerifierSpec) -> tuple[float, str]:
     return result.score, result.reason
 
 
+def evaluation_metadata(cases: list[AuditCase]) -> dict[str, Any]:
+    functional = any(case.verifier.type == "python_function" for case in cases)
+    image = os.environ.get("AION_VERIFIER_DOCKER_IMAGE", "") if functional else ""
+    # Never include arbitrary environment content in reports.
+    pinned = image if re.fullmatch(r"[A-Za-z0-9_./:-]+@sha256:[a-f0-9]{64}", image) else None
+    return {
+        "index_version": "2" if any(case.verifier.engine == "v2" for case in cases) else "1",
+        "verifier_image": pinned,
+    }
+
+
 def build_case_input(
     case: AuditCase,
     root: Path | None = None,
@@ -265,6 +276,7 @@ async def run_audit(
     scores = calculate_scores(results, registry)
 
     return AuditReport(
+        **evaluation_metadata(cases),
         generated_at=datetime.now(timezone.utc),
         suite="audit",
         suite_path="",
