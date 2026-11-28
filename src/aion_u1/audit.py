@@ -277,6 +277,7 @@ async def run_audit(
 
     return AuditReport(
         **evaluation_metadata(cases),
+        requested_max_tokens=max_tokens,
         generated_at=datetime.now(timezone.utc),
         suite="audit",
         suite_path="",
