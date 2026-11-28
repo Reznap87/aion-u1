@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -188,6 +189,8 @@ def extract_python_source(response: str) -> str:
 def build_docker_test_command(
     workdir: Path,
     verifier: TaskVerifier,
+    *,
+    container_name: str | None = None,
 ) -> list[str]:
     mount = (
         f"type=bind,source={workdir.resolve().as_posix()},"
@@ -198,6 +201,13 @@ def build_docker_test_command(
         "docker",
         "run",
         "--rm",
+        *(["--name", container_name] if container_name else []),
+        "--user",
+        "65534:65534",
+        "--ulimit",
+        "fsize=1048576:1048576",
+        "--log-driver",
+        "none",
         "--pull",
         "always" if verifier.pull_image else "never",
         "--network",
@@ -216,7 +226,7 @@ def build_docker_test_command(
         "--env",
         "PYTHONDONTWRITEBYTECODE=1",
         "--tmpfs",
-        "/tmp:rw,noexec,nosuid,size=64m",
+        "/tmp:rw,noexec,nosuid,nodev,size=64m",
         "--mount",
         mount,
         "--workdir",
@@ -253,6 +263,7 @@ def run_python_tests(
         )
 
     source = extract_python_source(response)
+    container_name = "aion-verifier-" + uuid.uuid4().hex
 
     try:
         with tempfile.TemporaryDirectory(
@@ -269,9 +280,11 @@ def run_python_tests(
                 encoding="utf-8",
             )
 
+            workdir.chmod(0o755)
             command = build_docker_test_command(
                 workdir,
                 verifier,
+                container_name=container_name,
             )
 
             completed = subprocess.run(
@@ -290,6 +303,12 @@ def run_python_tests(
                     method="python_code:docker",
                 )
 
+            if completed.returncode in {125, 126, 127}:
+                return VerificationResult(
+                    score=0.0, passed=False, reason="Docker execution unavailable",
+                    method="python_code:docker", error=True,
+                )
+
             details = (
                 completed.stdout + "\n" + completed.stderr
             ).strip()
@@ -305,6 +324,12 @@ def run_python_tests(
             )
 
     except subprocess.TimeoutExpired:
+        try:
+            subprocess.run(["docker", "rm", "-f", container_name],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=10, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
         return VerificationResult(
             score=0.0,
             passed=False,
