@@ -41,21 +41,41 @@ class VerifierSpec(BaseModel):
 
     type: Literal[
         "contains_all",
+        "contains_any",
         "not_contains",
         "regex",
         "exact_match",
         "json_equals",
+        "python_function",
     ]
     values: list[str] = Field(default_factory=list)
     expected: Any = None
+    case_insensitive: bool = True
+    partial: bool = False
+    pass_threshold: float = Field(default=1.0, gt=0, le=1)
+    engine: Literal["legacy", "v2"] = "legacy"
+    function: str | None = Field(default=None, pattern=r"^[A-Za-z][A-Za-z0-9_]*$")
+    function_cases: list[dict[str, Any]] = Field(default_factory=list, max_length=32)
+    timeout_seconds: float = Field(default=10.0, gt=0, le=120)
 
     @model_validator(mode="after")
     def validate_arguments(self) -> "VerifierSpec":
-        if self.type in {"contains_all", "not_contains", "regex"}:
+        if self.type in {"contains_all", "contains_any", "not_contains", "regex", "exact_match"}:
             if not self.values:
                 raise ValueError(f"Verifier {self.type} benötigt values")
         if self.type == "json_equals" and self.expected is None:
             raise ValueError("json_equals benötigt expected")
+        if self.type == "python_function":
+            if self.engine != "v2" or not self.function or not self.function_cases:
+                raise ValueError("python_function requires v2, function and function_cases")
+            if self.pass_threshold != 1.0 or self.values or self.expected is not None:
+                raise ValueError("Functional assertions require all cases to pass")
+        elif self.function is not None or self.function_cases:
+            raise ValueError("Function settings require python_function")
+        if self.partial and self.type != "contains_all":
+            raise ValueError("Partial scoring requires contains_all")
+        if self.engine == "legacy" and (self.partial or not self.case_insensitive or self.pass_threshold != 1.0 or self.type == "contains_any"):
+            raise ValueError("New scoring options require engine=v2")
         return self
 
 
@@ -130,6 +150,8 @@ class TeacherScore(BaseModel):
 
 class AuditReport(BaseModel):
     schema_version: str = "1.0"
+    index_version: Literal["1", "2"] = "1"
+    verifier_image: str | None = None
     generated_at: datetime
     suite: str
     suite_path: str

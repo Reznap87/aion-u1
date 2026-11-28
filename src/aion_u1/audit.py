@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .verifiers import VerificationResult, score_text
+from .functional_verifier import verify_function
 from .capabilities import CapabilityRegistry
 from .media import multimodal_content
 from .teachers.openrouter import DEFAULT_MAX_TOKENS
@@ -51,7 +54,7 @@ def _extract_json(text: str) -> Any:
     return json.loads(stripped[start : end + 1])
 
 
-def score_response(
+def _legacy_score_response(
     response: str,
     verifier: VerifierSpec,
 ) -> tuple[float, str]:
@@ -107,6 +110,42 @@ def score_response(
     return 0.0, "Unbekannter Verifier"
 
 
+def verify_response(response: str, verifier: VerifierSpec) -> VerificationResult:
+    if verifier.type == "python_function":
+        return verify_function(
+            response, function=verifier.function or "",
+            cases=verifier.function_cases,
+            docker_image=os.environ.get("AION_VERIFIER_DOCKER_IMAGE", ""),
+            timeout_seconds=verifier.timeout_seconds,
+        )
+    if verifier.engine == "legacy":
+        score, reason = _legacy_score_response(response, verifier)
+        return VerificationResult(score, score == 1.0, reason, verifier.type)
+    return score_text(
+        response, kind=verifier.type, values=verifier.values,
+        expected=verifier.expected, case_insensitive=verifier.case_insensitive,
+        partial=verifier.partial, pass_threshold=verifier.pass_threshold,
+    )
+
+
+def score_response(response: str, verifier: VerifierSpec) -> tuple[float, str]:
+    result = verify_response(response, verifier)
+    if result.error or result.score is None:
+        raise RuntimeError(result.reason)
+    return result.score, result.reason
+
+
+def evaluation_metadata(cases: list[AuditCase]) -> dict[str, Any]:
+    functional = any(case.verifier.type == "python_function" for case in cases)
+    image = os.environ.get("AION_VERIFIER_DOCKER_IMAGE", "") if functional else ""
+    # Never include arbitrary environment content in reports.
+    pinned = image if re.fullmatch(r"[A-Za-z0-9_./:-]+@sha256:[a-f0-9]{64}", image) else None
+    return {
+        "index_version": "2" if any(case.verifier.engine == "v2" for case in cases) else "1",
+        "verifier_image": pinned,
+    }
+
+
 def build_case_input(
     case: AuditCase,
     root: Path | None = None,
@@ -146,7 +185,8 @@ async def _run_case(
                 temperature=0,
                 max_tokens=max_tokens,
             )
-            score, _reason = score_response(
+            verification = await asyncio.to_thread(
+                verify_response,
                 response.content,
                 case.verifier,
             )
@@ -158,8 +198,9 @@ async def _run_case(
                 capability=case.capability,
                 prompt=case.prompt,
                 response=response.content,
-                score=score,
-                passed=score == 1.0,
+                score=verification.score,
+                passed=verification.passed and response.finish_reason != "length",
+                error=verification.reason if verification.error else None,
                 verifier_type=case.verifier.type,
                 latency_ms=response.latency_ms,
                 finish_reason=response.finish_reason,
@@ -235,6 +276,7 @@ async def run_audit(
     scores = calculate_scores(results, registry)
 
     return AuditReport(
+        **evaluation_metadata(cases),
         generated_at=datetime.now(timezone.utc),
         suite="audit",
         suite_path="",

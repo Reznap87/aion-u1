@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -13,6 +14,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..media import multimodal_content
+from ..verifiers import score_text
 
 
 class TaskVerifier(BaseModel):
@@ -33,6 +35,7 @@ class TaskVerifier(BaseModel):
     timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     docker_image: str = "python:3.12-slim"
     pull_image: bool = False
+    engine: Literal["legacy", "v2"] = "legacy"
 
     @model_validator(mode="after")
     def validate_arguments(self) -> "TaskVerifier":
@@ -186,6 +189,8 @@ def extract_python_source(response: str) -> str:
 def build_docker_test_command(
     workdir: Path,
     verifier: TaskVerifier,
+    *,
+    container_name: str | None = None,
 ) -> list[str]:
     mount = (
         f"type=bind,source={workdir.resolve().as_posix()},"
@@ -196,6 +201,13 @@ def build_docker_test_command(
         "docker",
         "run",
         "--rm",
+        *(["--name", container_name] if container_name else []),
+        "--user",
+        "65534:65534",
+        "--ulimit",
+        "fsize=1048576:1048576",
+        "--log-driver",
+        "none",
         "--pull",
         "always" if verifier.pull_image else "never",
         "--network",
@@ -214,7 +226,7 @@ def build_docker_test_command(
         "--env",
         "PYTHONDONTWRITEBYTECODE=1",
         "--tmpfs",
-        "/tmp:rw,noexec,nosuid,size=64m",
+        "/tmp:rw,noexec,nosuid,nodev,size=64m",
         "--mount",
         mount,
         "--workdir",
@@ -251,6 +263,7 @@ def run_python_tests(
         )
 
     source = extract_python_source(response)
+    container_name = "aion-verifier-" + uuid.uuid4().hex
 
     try:
         with tempfile.TemporaryDirectory(
@@ -267,15 +280,17 @@ def run_python_tests(
                 encoding="utf-8",
             )
 
+            workdir.chmod(0o755)
             command = build_docker_test_command(
                 workdir,
                 verifier,
+                container_name=container_name,
             )
 
             completed = subprocess.run(
                 command,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 timeout=verifier.timeout_seconds,
                 check=False,
             )
@@ -288,21 +303,26 @@ def run_python_tests(
                     method="python_code:docker",
                 )
 
-            details = (
-                completed.stdout + "\n" + completed.stderr
-            ).strip()
+            if completed.returncode in {125, 126, 127}:
+                return VerificationResult(
+                    score=0.0, passed=False, reason="Docker execution unavailable",
+                    method="python_code:docker", error=True,
+                )
 
             return VerificationResult(
                 score=0.0,
                 passed=False,
-                reason=(
-                    "Python-Tests fehlgeschlagen: "
-                    + details[-1200:]
-                ),
+                reason="Python-Tests fehlgeschlagen.",
                 method="python_code:docker",
             )
 
     except subprocess.TimeoutExpired:
+        try:
+            subprocess.run(["docker", "rm", "-f", container_name],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=10, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
         return VerificationResult(
             score=0.0,
             passed=False,
@@ -318,7 +338,7 @@ def run_python_tests(
         return VerificationResult(
             score=0.0,
             passed=False,
-            reason=f"Docker konnte nicht gestartet werden: {exc}",
+            reason=f"Docker konnte nicht gestartet werden: {type(exc).__name__}",
             method="python_code:docker",
             error=True,
         )
@@ -330,6 +350,16 @@ def verify_response(
 
     if verifier.type == "python_code":
         return run_python_tests(text, verifier)
+
+    if verifier.engine == "v2":
+        result = score_text(
+            text, kind=verifier.type, values=verifier.values,
+            expected=verifier.expected,
+            case_insensitive=verifier.type == "regex",
+        )
+        if result.error or result.score is None:
+            return VerificationResult(0.0, False, result.reason, result.method, True)
+        return VerificationResult(result.score, result.passed, result.reason, result.method)
 
     if verifier.type == "contains_all":
         missing = [

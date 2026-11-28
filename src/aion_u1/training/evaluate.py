@@ -29,7 +29,8 @@ from aion_u1.audit import (  # noqa: E402
     DEFAULT_MAX_TOKENS,
     build_case_input,
     calculate_scores,
-    score_response,
+    verify_response,
+    evaluation_metadata,
 )
 from aion_u1.capabilities import CapabilityRegistry  # noqa: E402
 from aion_u1.cli import load_cases, repository_root  # noqa: E402
@@ -110,7 +111,8 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
         )
     latency = int((time.time() - start) * 1000)
     text = tokenizer.decode(ausgabe[0][token["input_ids"].shape[1]:], skip_special_tokens=True)
-    score, _reason = score_response(text, case.verifier)
+    verification = verify_response(text, case.verifier)
+    truncated = len(ausgabe[0]) - token["input_ids"].shape[1] >= max_tokens
     return CaseResult(
         teacher_alias="lokal",
         teacher_model_id="lokal",
@@ -118,11 +120,12 @@ def _ausfuehren(modell, tokenizer, case, max_tokens: int, root: Path) -> CaseRes
         capability=case.capability,
         prompt=case.prompt,
         response=text,
-        score=score,
-        passed=score == 1.0,
+        score=verification.score,
+        passed=verification.passed and not truncated,
+        error=verification.reason if verification.error else None,
         verifier_type=case.verifier.type,
         latency_ms=latency,
-        finish_reason="length" if len(ausgabe[0]) - token["input_ids"].shape[1] >= max_tokens else "stop",
+        finish_reason="length" if truncated else "stop",
     )
 
 
@@ -155,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = {
         "schema_version": 1,
+        **evaluation_metadata(cases),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "kind": "local_model_evaluation",
         "base_model": args.base_model,

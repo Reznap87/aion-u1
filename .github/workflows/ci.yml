@@ -87,3 +87,25 @@ jobs:
               --output "reports/$(basename "$config" .yaml).json"
           done
 
+
+  functional-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: pip install -e ".[dev]"
+      - name: Resolve local test image digest
+        run: |
+          docker pull python:3.12-slim
+          image=$(docker image inspect --format '{{index .RepoDigests 0}}' python:3.12-slim)
+          [[ "$image" =~ @sha256:[a-f0-9]{64}$ ]]
+          echo "AION_VERIFIER_DOCKER_IMAGE=$image" >> "$GITHUB_ENV"
+          echo "Test image: $image"
+      - name: Run real Docker tests (synthetic code, no teacher APIs)
+        run: pytest -q tests/test_functional_docker_live.py
