@@ -35,12 +35,12 @@ capabilities:
         return dict(teacher_alias=alias, teacher_model_id=alias, case_id=case_id,
                     capability=capability, prompt=prompt, response="42",
                     score=score, passed=score == 1, verifier_type="exact_match",
-                    latency_ms=1)
+                    latency_ms=1, max_tokens=1024)
 
-    teacher = {"index_version": "1", "provenance": copy.deepcopy(provenance),
+    teacher = {"requested_max_tokens": 1024, "index_version": "1", "provenance": copy.deepcopy(provenance),
                "results": [row("teacher", "code.one", "code.synthesis", "answer", 1),
                            row("teacher", "math.one", "reasoning.logical", "calculate", 0.8)]}
-    student = {"index_version": "1", "provenance": copy.deepcopy(provenance),
+    student = {"max_tokens": 1024, "index_version": "1", "provenance": copy.deepcopy(provenance),
                "results": [row("student", "code.one", "code.synthesis", "answer", 0.5),
                            row("student", "math.one", "reasoning.logical", "calculate", 0.8)]}
     return teacher, student, suite, capabilities
@@ -86,3 +86,19 @@ def test_zero_teacher_is_not_meaningful_target(reports):
                 if row["capability"] == "code.synthesis")
     assert code["target_score"] is None
     assert code["status"] == "unmeasured"
+
+
+def test_mismatched_requested_budget(reports):
+    teacher, student, *_ = reports
+    teacher["requested_max_tokens"] = 512
+    with pytest.raises(ValueError, match="token budgets"):
+        compare_reports(*reports)
+
+
+def test_reduced_effective_budget_is_unmeasured(reports):
+    teacher, student, *_ = reports
+    teacher["results"][0]["max_tokens"] = 128
+    row = next(r for r in compare_reports(*reports)["capabilities"]
+               if r["capability"] == "code.synthesis")
+    assert row["best_teacher_score"] is None
+    assert row["status"] == "unmeasured"
