@@ -50,3 +50,35 @@ def test_benchmark_overlap_and_unpinned_model_block(tmp_path):
     result = check(config, tmp_path, suite, caps)
     assert "train:benchmark_overlap" in result["blockers"]
     assert "immutable_model_revision_required" in result["blockers"]
+
+
+def test_training_entrypoint_blocks_before_model_loading(monkeypatch, tmp_path):
+    import builtins
+    import pytest
+    from aion_u1.training import sft
+    from aion_u1.training.data import TrainingDataError
+
+    config, suite, caps, _ = fixture(tmp_path)
+    (tmp_path / "configs").mkdir()
+    (tmp_path / "configs" / "capabilities.yaml").write_bytes(caps.read_bytes())
+    config.model.revision = "main"
+    monkeypatch.setattr(sft, "find_project_root", lambda: tmp_path)
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        if name in {"torch", "transformers", "peft"}:
+            pytest.fail("Model loading dependencies must not be imported before preflight")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    with pytest.raises(TrainingDataError, match="immutable_model_revision_required"):
+        sft.run_sft(config, suite=suite)
+    assert not (tmp_path / "output").exists()
+
+
+def test_empty_benchmark_cannot_bypass_preflight(tmp_path):
+    import pytest
+    config, suite, caps, _ = fixture(tmp_path)
+    suite.write_text("cases: []")
+    with pytest.raises(ValueError, match="Benchmark suite is empty"):
+        check(config, tmp_path, suite, caps)
