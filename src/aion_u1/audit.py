@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .verifiers import VerificationResult, score_text
+from .functional_verifier import verify_function
 from .capabilities import CapabilityRegistry
 from .media import multimodal_content
 from .teachers.openrouter import DEFAULT_MAX_TOKENS
@@ -109,6 +111,13 @@ def _legacy_score_response(
 
 
 def verify_response(response: str, verifier: VerifierSpec) -> VerificationResult:
+    if verifier.type == "python_function":
+        return verify_function(
+            response, function=verifier.function or "",
+            cases=verifier.function_cases,
+            docker_image=os.environ.get("AION_VERIFIER_DOCKER_IMAGE", ""),
+            timeout_seconds=verifier.timeout_seconds,
+        )
     if verifier.engine == "legacy":
         score, reason = _legacy_score_response(response, verifier)
         return VerificationResult(score, score == 1.0, reason, verifier.type)
@@ -165,7 +174,8 @@ async def _run_case(
                 temperature=0,
                 max_tokens=max_tokens,
             )
-            verification = verify_response(
+            verification = await asyncio.to_thread(
+                verify_response,
                 response.content,
                 case.verifier,
             )
